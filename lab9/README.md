@@ -1,16 +1,30 @@
-# lab8
+# Thailand Weather App
 
-A new Flutter project.
+แอปพลิเคชัน Flutter สำหรับแสดงสภาพอากาศในประเทศไทย โดยใช้ข้อมูลจาก Open-Meteo API
 
-## Getting Started
 
-This project is a starting point for a Flutter application.
+## ฟีเจอร์หลัก (Features)
 
-A few resources to get you started if this is your first Flutter project:
+1.  **สภาพอากาศปัจจุบัน (Current Weather)**
+    *   แสดงอุณหภูมิปัจจุบัน (Temperature)
+    *   แสดงรหัสสภาพอากาศ (Weather Code)
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+2.  **พยากรณ์อากาศ 10 วันล่วงหน้า (10-Day Forecast)**
+    *   แสดงวันที่ (Date)
+    *   แสดงอุณหภูมิสูงสุดและต่ำสุด (Max/Min Temperature)
+    *   แสดงรหัสสภาพอากาศ (Weather Code)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## เทคโนโลยีที่ใช้ (Tech Stack)
+
+*   **Flutter**: Framework สำหรับสร้างแอปพลิเคชัน
+*   **Provider**: สำหรับการจัดการสถานะภายในแอป (State Management)
+*   **HTTP**: สำหรับการเรียกใช้งาน API
+
+## แหล่งข้อมูล (API Source)
+
+ใช้บริการฟรีจาก [Open-Meteo API](https://open-meteo.com/):
+`https://api.open-meteo.com/v1/forecast?latitude=15.5&longitude=101&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=10&timezone=Asia%2FBangkok`
+
+
+- ![](./img/home.png)
+- ![](./img/10day.png)
