@@ -6,11 +6,16 @@ class UserApiService {
   static const String _baseUrl = 'https://fakestoreapi.com/users';
 
   Future<List<UserModel>> fetchUsers() async {
+    print('Fetching users from API...'); // Debug
     final res = await http.get(Uri.parse(_baseUrl));
+    print('API Response Status: ${res.statusCode}'); // Debug
+    
     if (res.statusCode == 200) {
       final List data = jsonDecode(res.body);
+      print('API Data Length: ${data.length}'); // Debug
       return data.map((e) => UserModel.fromJson(e)).toList();
     }
+    print('API Error: ${res.statusCode} - ${res.body}'); // Debug
     throw Exception('Failed to load users (${res.statusCode})');
   }
 

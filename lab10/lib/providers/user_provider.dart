@@ -15,20 +15,60 @@ class UserProvider extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
+      print('Loading users...'); // Debug
       final prefs = await SharedPreferences.getInstance();
       final String? usersJson = prefs.getString('users_data');
 
       if (usersJson != null && usersJson.isNotEmpty) {
         // Load from local storage
+        print('Loading users from local storage'); // Debug
         final List<dynamic> jsonList = json.decode(usersJson);
         users = jsonList.map((json) => UserModel.fromJson(json)).toList();
+        print('Loaded ${users.length} users from storage'); // Debug
       } else {
         // Load from API and save to local
+        print('Loading users from API'); // Debug
         users = await _api.fetchUsers();
+        print('Loaded ${users.length} users from API'); // Debug
         await _saveToPrefs();
       }
     } catch (e) {
       error = e.toString();
+      print('Error loading users: $e'); // Debug
+      
+      // Add fallback users for testing (excluding admin email)
+      print('Adding fallback users'); // Debug
+      users = [
+        UserModel(
+          email: 'john@example.com',
+          username: 'johnd',
+          password: '123456',
+          name: NameModel(firstname: 'John', lastname: 'Doe'),
+          address: AddressModel(
+            city: 'New York',
+            street: '123 Main St',
+            number: 1,
+            zipcode: '10001',
+            geolocation: GeoLocationModel(lat: '40.7128', long: '-74.0060'),
+          ),
+          phone: '123-456-7890',
+        ),
+        UserModel(
+          email: 'jane@example.com',
+          username: 'janed',
+          password: '123456',
+          name: NameModel(firstname: 'Jane', lastname: 'Smith'),
+          address: AddressModel(
+            city: 'Los Angeles',
+            street: '456 Oak Ave',
+            number: 2,
+            zipcode: '90001',
+            geolocation: GeoLocationModel(lat: '34.0522', long: '-118.2437'),
+          ),
+          phone: '098-765-4321',
+        ),
+      ];
+      await _saveToPrefs();
     }
     isLoading = false;
     notifyListeners();
