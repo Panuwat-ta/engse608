@@ -153,24 +153,24 @@ lib/
 
 ### 1. หน้าหลัก (Home Screen)
 แสดงรายการ Event ทั้งหมด พร้อมสถานะของแต่ละ Event และปฏิทินแบบรายสัปดาห์
-![](/images/home.png)
+- ![](./images/home.png)
 
 ### 2. สร้างกิจกรรม (Create Event)
 หน้าสำหรับสร้าง Event ใหม่ โดยสามารถระบุชื่อ, รายละเอียด, หมวดหมู่, วันเวลา, และตั้งค่าโหมดการแจ้งเตือนได้
-![](/images/create-event.png)
+- ![](./images/create-event.png)
 
 ### 3. แก้ไขกิจกรรมและดูรายละเอียด (Edit & Event Details)
 หน้าสำหรับดูรายละเอียดกิจกรรม, เปลี่ยนแปลงสถานะ (Pending/In Progress/Completed), และแก้ไขข้อมูล
-![](/images/edit-event.png)
+- ![](./images/edit-event.png)
 
 ### 4. จัดการหมวดหมู่ (Manage Categories)
 หน้าจอสำหรับจัดการหมวดหมู่ (Category) โดยสามารถเพิ่ม, ลบ, แก้ไขชื่อ และกำหนดโค้ดสีเพื่อให้ค้นหาได้ง่ายขึ้น
-![](/images/Manage-Categories.png)
+- ![](./images/Manage-Categories.png)
 
 ### 5. ระบบกรองข้อมูล (Filter & Sort)
 หน้าจอการกรอง Event ต่างๆ ตามหมวดหมู่และสถานะ เพื่อรองรับการค้นหาที่ละเอียดและตรงจุด
-![](/images/filter.png)
+- ![](./images/filter.png)
 
 ### 6. การแจ้งเตือน (Local Notification)
 ภาพแสดงการทำงานของระบบ Local Notification ที่จะแจ้งเตือนผู้ใช้บนหน้าจอเมื่อถึงเวลาที่กำหนดไว้แบบออฟไลน์
-![](/images/notification.png)
+- ![](./images/notification.png)
