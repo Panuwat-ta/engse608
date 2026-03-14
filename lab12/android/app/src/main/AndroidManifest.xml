@@ -1,8 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Internet: สำหรับส่งข้อมูลไปยัง Google Apps Script -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Location: สำหรับดึงพิกัด GPS ตอนสมัครสมาชิก -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
     <application
-        android:label="lab12"
+        android:label="Community Tools"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -1,5 +1,5 @@
 name: lab12
-description: "A new Flutter project."
+description: "Community Tool Sharing App - ระบบยืม-คืนอุปกรณ์ชุมชน"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -34,6 +34,18 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  provider: ^6.1.5+1
+  sqflite: ^2.4.2
+  path_provider: ^2.1.5
+  path: ^1.9.0
+  http: ^1.6.0
+  geolocator: ^14.0.2
+  url_launcher: ^6.3.2
+  shared_preferences: ^2.5.4
+  image_picker: ^1.1.2
+  bcrypt: ^1.1.3          # bcrypt adaptive hashing (auto-salted, stronger than SHA-256)
+  # Clipboard support (built-in via flutter/services.dart)
+  # No additional package needed — flutter/services provides Clipboard
 
 dev_dependencies:
   flutter_test:
