@@ -5,9 +5,9 @@
 **Community Tool Sharing** - แอปพลิเคชันสำหรับการยืม-คืนเครื่องมือในชุมชน
 
 **android (แนะนำ)**
-- [📦 ดาวน์โหลด Community Tools.apk ]( )
+- [📦 ดาวน์โหลด Community Tools.apk ](https://github.com/Panuwat-ta/engse608/releases/download/v1.0.0.0/app-release.apk)
 
-**หรือดาวน์โหลดจาก [Releases]()**
+**หรือดาวน์โหลดจาก [Releases](https://github.com/Panuwat-ta/engse608/releases/tag/v1.0.0.0)**
 
 ## 🎯 จุดประสงค์แอป
 
