@@ -11,6 +11,7 @@ import '../database/database_helper.dart';
 import 'login_screen.dart';
 import 'admin_config_screen.dart';
 import 'pending_members_screen.dart';
+import 'rejected_members_screen.dart';
 import 'all_members_screen.dart';
 import 'admin_profile_screen.dart';
 import 'manage_transactions_screen.dart';
@@ -28,6 +29,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int _totalCount = 0;
   int _pendingCount = 0;
   int _activeCount = 0;
+  int _rejectedCount = 0;
   bool _loading = true;
 
   @override
@@ -49,6 +51,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         _totalCount = localUsers.length;
         _pendingCount = localUsers.where((u) => u.status == 'Pending').length;
         _activeCount = localUsers.where((u) => u.status == 'Active').length;
+        _rejectedCount = localUsers.where((u) => u.status == 'Rejected').length;
         _loading = false;
       });
 
@@ -85,6 +88,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           _totalCount = localUsers.length;
           _pendingCount = localUsers.where((u) => u.status == 'Pending').length;
           _activeCount = localUsers.where((u) => u.status == 'Active').length;
+          _rejectedCount = localUsers
+              .where((u) => u.status == 'Rejected')
+              .length;
         });
       }
     } catch (e) {
@@ -426,6 +432,26 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     await Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const AllMembersScreen(),
+                      ),
+                    );
+                    _loadStats();
+                  },
+                ),
+                const SizedBox(height: 10),
+
+                // Rejected members
+                _ActionCard(
+                  icon: Icons.person_off_rounded,
+                  title: 'สมาชิกที่ถูกปฏิเสธ',
+                  subtitle: _rejectedCount > 0
+                      ? 'มีสมาชิกที่ถูกปฏิเสธ $_rejectedCount คน'
+                      : 'ไม่มีสมาชิกที่ถูกปฏิเสธ',
+                  badge: _rejectedCount > 0 ? '$_rejectedCount' : null,
+                  color: Colors.red,
+                  onTap: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const RejectedMembersScreen(),
                       ),
                     );
                     _loadStats();

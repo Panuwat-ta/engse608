@@ -128,6 +128,30 @@ function doPost(e) {
       return _jsonResponse({ status: 'ok', found: false });
     }
 
+    // ── Delete user from Users sheet ───────────────────────────────
+    if (data.action === 'deleteUser') {
+      const rows = sheet.getDataRange().getValues();
+      const headers = rows[0];
+      const gmailIdx = headers.indexOf('อีเมล');
+
+      if (gmailIdx === -1) {
+        return _jsonResponse({ status: 'error', message: 'Gmail column not found' });
+      }
+
+      let deleted = false;
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i][gmailIdx] === data.gmail) {
+          sheet.deleteRow(i + 1);
+          deleted = true;
+          break;
+        }
+      }
+      return _jsonResponse({
+        status: deleted ? 'ok' : 'not_found',
+        message: deleted ? 'User deleted successfully' : 'User not found',
+      });
+    }
+
     // ── Add Admin to Admins sheet ───────────────────────────────
     if (data.action === 'addAdmin') {
       const adminSheet = ss.getSheetByName(SHEET_NAMES.ADMINS);

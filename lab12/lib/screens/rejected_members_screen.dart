@@ -1,25 +1,24 @@
-// lib/screens/all_members_screen.dart
-// Screen to display all approved members (Active and Admin status)
+// lib/screens/rejected_members_screen.dart
+// Admin view: list of Rejected members with option to re-approve
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
-import '../services/sync_service.dart';
 import '../services/sheets_service.dart';
+import '../services/sync_service.dart';
 import '../database/database_helper.dart';
 
-class AllMembersScreen extends StatefulWidget {
-  const AllMembersScreen({super.key});
+class RejectedMembersScreen extends StatefulWidget {
+  const RejectedMembersScreen({super.key});
 
   @override
-  State<AllMembersScreen> createState() => _AllMembersScreenState();
+  State<RejectedMembersScreen> createState() => _RejectedMembersScreenState();
 }
 
-class _AllMembersScreenState extends State<AllMembersScreen> {
+class _RejectedMembersScreenState extends State<RejectedMembersScreen> {
   List<Map<String, dynamic>> _allMembers = [];
   bool _loading = true;
   String _error = '';
-  // Removed filter since we only show Active members
 
   @override
   void initState() {
@@ -46,13 +45,13 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
       // Load from Local Database first (instant display)
       final users = await DatabaseHelper.instance.getAllUsers();
 
-      // Filter only Active members (exclude Admin)
-      final approvedUsers = users
-          .where((user) => user.status == 'Active')
+      // Filter only rejected members
+      final rejectedUsers = users
+          .where((user) => user.status == 'Rejected')
           .toList();
 
       // Convert UserModel to Map format for compatibility
-      final members = approvedUsers
+      final members = rejectedUsers
           .map(
             (user) => {
               'Name': user.name,
@@ -72,9 +71,9 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
         _loading = false;
         if (members.isEmpty) {
           _error =
-              'ยังไม่มีสมาชิกที่อนุมัติแล้ว\n\n'
-              'หน้านี้แสดงรายชื่อสมาชิกที่ได้รับการอนุมัติแล้ว\n'
-              '(สถานะ Active เท่านั้น)';
+              'ไม่มีสมาชิกที่ถูกปฏิเสธ\n\n'
+              'หน้านี้แสดงรายชื่อสมาชิกที่ถูกปฏิเสธ\n'
+              '(สถานะ Rejected)';
         }
       });
 
@@ -97,12 +96,12 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
     try {
       final users = await DatabaseHelper.instance.getAllUsers();
 
-      // Filter only Active members (exclude Admin)
-      final approvedUsers = users
-          .where((user) => user.status == 'Active')
+      // Filter only rejected members
+      final rejectedUsers = users
+          .where((user) => user.status == 'Rejected')
           .toList();
 
-      final members = approvedUsers
+      final members = rejectedUsers
           .map(
             (user) => {
               'Name': user.name,
@@ -124,6 +123,144 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
       }
     } catch (e) {
       debugPrint('Error reloading from database: $e');
+    }
+  }
+
+  Future<void> _updateStatus(String gmail, String newStatus) async {
+    final appProvider = context.read<AppProvider>();
+
+    // Show loading indicator
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                newStatus == 'Active' ? 'กำลังอนุมัติ...' : 'กำลังดำเนินการ...',
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+
+    bool ok = await SheetsService.instance.updateMemberStatus(
+      appProvider.webAppUrl,
+      gmail,
+      newStatus,
+    );
+
+    if (ok) {
+      // Update local database
+      await DatabaseHelper.instance.updateUserStatus(gmail, newStatus);
+
+      // Remove from rejected list immediately
+      setState(() {
+        _allMembers.removeWhere((m) => m['Gmail'] == gmail);
+      });
+
+      if (mounted) {
+        String msg = newStatus == 'Active'
+            ? 'อนุมัติ $gmail สำเร็จ'
+            : newStatus == 'Admin'
+            ? 'ตั้ง $gmail เป็นผู้ดูแลแล้ว'
+            : newStatus == 'Pending'
+            ? 'ย้าย $gmail กลับไปรอการอนุมัติ'
+            : 'ปรับสถานะ $gmail สำเร็จ';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✅ $msg'), backgroundColor: Colors.green),
+        );
+      }
+
+      // Reload from database to ensure data is fresh
+      await _reloadFromDatabase();
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ ไม่สามารถดำเนินการได้ กรุณาลองใหม่'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showApproveDialog(String gmail, String name) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('อนุมัติสมาชิก'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('คุณต้องการอนุมัติสมาชิกที่ถูกปฏิเสธ'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    gmail,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'เลือกสถานะใหม่:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade700,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(null),
+            child: const Text('ยกเลิก'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop('Pending'),
+            child: const Text('ย้ายไปรอการอนุมัติ'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop('Active'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('ตกลง'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      await _updateStatus(gmail, result);
     }
   }
 
@@ -275,15 +412,13 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
     }
   }
 
-  // No filtering needed since we only load Active members
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('สมาชิกทั้งหมด'),
+        title: const Text('สมาชิกที่ถูกปฏิเสธ'),
         centerTitle: true,
         actions: [
           IconButton(
@@ -305,22 +440,22 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.green.withAlpha(30),
+                  color: Colors.red.withAlpha(30),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(
-                      Icons.check_circle_rounded,
-                      color: Colors.green,
+                      Icons.cancel_rounded,
+                      color: Colors.red,
                       size: 18,
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'สมาชิก ${_allMembers.length} คน',
+                      'ถูกปฏิเสธ ${_allMembers.length} คน',
                       style: const TextStyle(
-                        color: Colors.green,
+                        color: Colors.red,
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
                       ),
@@ -372,14 +507,17 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.inbox_rounded,
+                          Icons.check_circle_outline_rounded,
                           size: 64,
-                          color: cs.onSurfaceVariant,
+                          color: Colors.green,
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'ไม่มีข้อมูล',
-                          style: TextStyle(color: cs.onSurfaceVariant),
+                          'ไม่มีสมาชิกที่ถูกปฏิเสธ 🎉',
+                          style: TextStyle(
+                            color: cs.onSurfaceVariant,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
@@ -395,10 +533,11 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
                         final m = _allMembers[i];
 
                         return Card(
-                          elevation: 0,
-                          color: cs.surfaceContainerHighest,
+                          elevation: 2,
+                          color: Colors.red.shade50,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
+                            side: BorderSide(color: Colors.red.shade300),
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
@@ -409,14 +548,14 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
                                   children: [
                                     CircleAvatar(
                                       radius: 22,
-                                      backgroundColor: Colors.green.shade100,
+                                      backgroundColor: Colors.red.shade100,
                                       child: Text(
                                         (m['Name']?.toString() ?? 'U')
                                             .substring(0, 1)
                                             .toUpperCase(),
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.green.shade800,
+                                          color: Colors.red.shade800,
                                         ),
                                       ),
                                     ),
@@ -444,19 +583,19 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
                                     ),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
+                                        horizontal: 8,
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.green.shade100,
-                                        borderRadius: BorderRadius.circular(20),
+                                        color: Colors.red.shade100,
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Text(
-                                        'Active',
+                                        'ถูกปฏิเสธ',
                                         style: TextStyle(
-                                          color: Colors.green.shade800,
-                                          fontSize: 11,
+                                          fontSize: 10,
                                           fontWeight: FontWeight.bold,
+                                          color: Colors.red.shade700,
                                         ),
                                       ),
                                     ),
@@ -506,6 +645,28 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
                                       ],
                                     ),
                                   ),
+                                const SizedBox(height: 10),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton.icon(
+                                    onPressed: () => _showApproveDialog(
+                                      m['Gmail']?.toString() ?? '',
+                                      m['Name']?.toString() ?? '',
+                                    ),
+                                    icon: const Icon(
+                                      Icons.refresh_rounded,
+                                      size: 18,
+                                    ),
+                                    label: const Text('พิจารณาใหม่'),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: Colors.blue.shade500,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -519,5 +680,3 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
     );
   }
 }
-
-// Removed _StatChip and _StatusBadge widgets since we only show Active members

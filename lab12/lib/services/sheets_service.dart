@@ -191,6 +191,35 @@ class SheetsService {
     }
   }
 
+  // ─── Delete user from Google Sheets ──────────────────────────────────────
+
+  Future<bool> deleteUser(String webAppUrl, String gmail) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse(webAppUrl),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'action': 'deleteUser', 'gmail': gmail}),
+          )
+          .timeout(_timeout);
+
+      // Handle both 200 and 302 (Google Apps Script redirect)
+      if (response.statusCode == 200 || response.statusCode == 302) {
+        // For 302, the operation was successful even though it redirected
+        if (response.statusCode == 302) {
+          return true;
+        }
+
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        return body['status'] == 'ok';
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error deleting user: $e');
+      return false;
+    }
+  }
+
   // ─── Check user by Gmail ──────────────────────────────────────────────────
 
   /// Returns user map from Sheet or null if not found / offline

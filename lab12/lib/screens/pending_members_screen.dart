@@ -132,10 +132,10 @@ class _PendingMembersScreenState extends State<PendingMembersScreen> {
     // Show loading indicator
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
-              SizedBox(
+              const SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
@@ -143,11 +143,13 @@ class _PendingMembersScreenState extends State<PendingMembersScreen> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               ),
-              SizedBox(width: 12),
-              Text('กำลังอนุมัติ...'),
+              const SizedBox(width: 12),
+              Text(
+                newStatus == 'Active' ? 'กำลังอนุมัติ...' : 'กำลังดำเนินการ...',
+              ),
             ],
           ),
-          duration: Duration(seconds: 1),
+          duration: const Duration(seconds: 1),
         ),
       );
     }
@@ -172,9 +174,16 @@ class _PendingMembersScreenState extends State<PendingMembersScreen> {
             ? 'อนุมัติ $gmail สำเร็จ'
             : newStatus == 'Admin'
             ? 'ตั้ง $gmail เป็นผู้ดูแลแล้ว'
+            : newStatus == 'Rejected'
+            ? 'ปฏิเสธ $gmail แล้ว'
             : 'ปรับสถานะ $gmail สำเร็จ';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ $msg'), backgroundColor: Colors.green),
+          SnackBar(
+            content: Text('✅ $msg'),
+            backgroundColor: newStatus == 'Rejected'
+                ? Colors.orange
+                : Colors.green,
+          ),
         );
       }
 
@@ -189,6 +198,71 @@ class _PendingMembersScreenState extends State<PendingMembersScreen> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _showRejectDialog(String gmail, String name) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('ยืนยันการปฏิเสธ'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('คุณต้องการปฏิเสธการสมัครสมาชิกของ'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    gmail,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'หมายเหตุ: สมาชิกที่ถูกปฏิเสธจะไม่สามารถเข้าใช้งานระบบได้',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.red.shade600,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('ยกเลิก'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('ตกลง'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      await _updateStatus(gmail, 'Rejected');
     }
   }
 
@@ -390,26 +464,51 @@ class _PendingMembersScreenState extends State<PendingMembersScreen> {
                                     ),
                                   ),
                                 const SizedBox(height: 10),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: FilledButton.icon(
-                                    onPressed: () => _updateStatus(
-                                      m['Gmail']?.toString() ?? '',
-                                      'Active',
-                                    ),
-                                    icon: const Icon(
-                                      Icons.check_circle_rounded,
-                                      size: 18,
-                                    ),
-                                    label: const Text('อนุมัติ'),
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: Colors.green.shade500,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: FilledButton.icon(
+                                        onPressed: () => _updateStatus(
+                                          m['Gmail']?.toString() ?? '',
+                                          'Active',
+                                        ),
+                                        icon: const Icon(
+                                          Icons.check_circle_rounded,
+                                          size: 18,
+                                        ),
+                                        label: const Text('อนุมัติ'),
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor:
+                                              Colors.green.shade500,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: FilledButton.icon(
+                                        onPressed: () => _showRejectDialog(
+                                          m['Gmail']?.toString() ?? '',
+                                          m['Name']?.toString() ?? '',
+                                        ),
+                                        icon: const Icon(
+                                          Icons.cancel_rounded,
+                                          size: 18,
+                                        ),
+                                        label: const Text('ปฏิเสธ'),
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: Colors.red.shade500,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
