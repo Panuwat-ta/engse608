@@ -66,12 +66,17 @@ class SheetsService {
           )
           .timeout(_timeout);
 
-      if (response.statusCode == 200) {
+      // Handle both 200 and 302 (Google Apps Script redirect)
+      if (response.statusCode == 200 || response.statusCode == 302) {
+        if (response.statusCode == 302) {
+          return true; // 302 means success for Google Apps Script
+        }
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         return body['status'] == 'ok';
       }
       return false;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Error initializing table: $e');
       return false;
     }
   }
@@ -169,12 +174,19 @@ class SheetsService {
           )
           .timeout(_timeout);
 
-      if (response.statusCode == 200) {
+      // Handle both 200 and 302 (Google Apps Script redirect)
+      if (response.statusCode == 200 || response.statusCode == 302) {
+        // For 302, the operation was successful even though it redirected
+        if (response.statusCode == 302) {
+          return true;
+        }
+
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         return body['status'] == 'ok';
       }
       return false;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Error updating member status: $e');
       return false;
     }
   }
@@ -237,6 +249,8 @@ class SheetsService {
 
   Future<List<Map<String, dynamic>>> fetchAllAdmins(String webAppUrl) async {
     try {
+      debugPrint('📡 Fetching all admins from Sheets...');
+
       final response = await http
           .post(
             Uri.parse(webAppUrl),
@@ -245,14 +259,58 @@ class SheetsService {
           )
           .timeout(_timeout);
 
-      if (response.statusCode == 200) {
+      debugPrint('📡 Admins response status: ${response.statusCode}');
+
+      // Handle redirect (302)
+      if (response.statusCode == 302) {
+        debugPrint('📡 Got redirect for admins, following...');
+
+        // Extract redirect URL from HTML response
+        final htmlBody = response.body;
+        final urlMatch = RegExp(r'HREF="([^"]+)"').firstMatch(htmlBody);
+
+        if (urlMatch != null) {
+          final redirectUrl = urlMatch.group(1)!.replaceAll('&amp;', '&');
+          debugPrint('📡 Admins redirect URL: $redirectUrl');
+
+          // Follow redirect with GET request
+          final redirectResponse = await http
+              .get(Uri.parse(redirectUrl))
+              .timeout(_timeout);
+
+          debugPrint(
+            '📡 Admins redirect response status: ${redirectResponse.statusCode}',
+          );
+
+          if (redirectResponse.statusCode == 200) {
+            final body =
+                jsonDecode(redirectResponse.body) as Map<String, dynamic>;
+            if (body['status'] == 'ok') {
+              final admins = List<Map<String, dynamic>>.from(
+                body['admins'] as List,
+              );
+              debugPrint(
+                '✅ Fetched ${admins.length} admins from Sheets (via redirect)',
+              );
+              return admins;
+            }
+          }
+        }
+      } else if (response.statusCode == 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         if (body['status'] == 'ok') {
-          return List<Map<String, dynamic>>.from(body['admins'] as List);
+          final admins = List<Map<String, dynamic>>.from(
+            body['admins'] as List,
+          );
+          debugPrint('✅ Fetched ${admins.length} admins from Sheets');
+          return admins;
         }
       }
+
+      debugPrint('⚠️ No admins returned from Sheets');
       return [];
-    } catch (_) {
+    } catch (e) {
+      debugPrint('❌ Error fetching admins: $e');
       return [];
     }
   }
@@ -276,6 +334,349 @@ class SheetsService {
       return false;
     } catch (_) {
       return false;
+    }
+  }
+
+  // ─── Fetch all equipment from Equipment sheet ────────────────────────────
+
+  Future<List<Map<String, dynamic>>> fetchAllEquipment(String webAppUrl) async {
+    try {
+      debugPrint('📡 Fetching all equipment from Sheets...');
+
+      final response = await http
+          .post(
+            Uri.parse(webAppUrl),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'action': 'getAllEquipment'}),
+          )
+          .timeout(_timeout);
+
+      debugPrint('📡 Equipment response status: ${response.statusCode}');
+
+      // Handle redirect (302)
+      if (response.statusCode == 302) {
+        debugPrint('📡 Got redirect for equipment, following...');
+
+        final htmlBody = response.body;
+        final urlMatch = RegExp(r'HREF="([^"]+)"').firstMatch(htmlBody);
+
+        if (urlMatch != null) {
+          final redirectUrl = urlMatch.group(1)!.replaceAll('&amp;', '&');
+          debugPrint('📡 Equipment redirect URL: $redirectUrl');
+
+          final redirectResponse = await http
+              .get(Uri.parse(redirectUrl))
+              .timeout(_timeout);
+
+          debugPrint(
+            '📡 Equipment redirect response status: ${redirectResponse.statusCode}',
+          );
+
+          if (redirectResponse.statusCode == 200) {
+            final body =
+                jsonDecode(redirectResponse.body) as Map<String, dynamic>;
+            if (body['status'] == 'ok') {
+              final equipment = List<Map<String, dynamic>>.from(
+                body['equipment'] as List,
+              );
+              debugPrint(
+                '✅ Fetched ${equipment.length} equipment from Sheets (via redirect)',
+              );
+              return equipment;
+            }
+          }
+        }
+      } else if (response.statusCode == 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        if (body['status'] == 'ok') {
+          final equipment = List<Map<String, dynamic>>.from(
+            body['equipment'] as List,
+          );
+          debugPrint('✅ Fetched ${equipment.length} equipment from Sheets');
+          return equipment;
+        }
+      }
+
+      debugPrint('⚠️ No equipment returned from Sheets');
+      return [];
+    } catch (e) {
+      debugPrint('❌ Error fetching equipment: $e');
+      return [];
+    }
+  }
+
+  // ─── Add equipment to Equipment sheet ─────────────────────────────────────
+
+  Future<bool> addEquipment(
+    String webAppUrl,
+    Map<String, dynamic> equipment,
+  ) async {
+    try {
+      debugPrint('📡 Adding equipment to Sheets...');
+
+      final response = await http
+          .post(
+            Uri.parse(webAppUrl),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'action': 'addEquipment',
+              'updatedAt': DateTime.now().toIso8601String(),
+              ...equipment,
+            }),
+          )
+          .timeout(_timeout);
+
+      debugPrint('📡 Add equipment response status: ${response.statusCode}');
+
+      // Handle redirect (302)
+      if (response.statusCode == 302) {
+        debugPrint('📡 Got redirect for add equipment, following...');
+
+        final htmlBody = response.body;
+        final urlMatch = RegExp(r'HREF="([^"]+)"').firstMatch(htmlBody);
+
+        if (urlMatch != null) {
+          final redirectUrl = urlMatch.group(1)!.replaceAll('&amp;', '&');
+          debugPrint('📡 Add equipment redirect URL: $redirectUrl');
+
+          final redirectResponse = await http
+              .get(Uri.parse(redirectUrl))
+              .timeout(_timeout);
+
+          debugPrint(
+            '📡 Add equipment redirect response status: ${redirectResponse.statusCode}',
+          );
+
+          if (redirectResponse.statusCode == 200) {
+            final body =
+                jsonDecode(redirectResponse.body) as Map<String, dynamic>;
+            return body['status'] == 'ok';
+          }
+        }
+      } else if (response.statusCode == 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        return body['status'] == 'ok';
+      }
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error adding equipment: $e');
+      return false;
+    }
+  }
+
+  // ─── Update equipment in Equipment sheet ──────────────────────────────────
+
+  Future<Map<String, dynamic>> updateEquipment(
+    String webAppUrl,
+    int id,
+    Map<String, dynamic> equipment,
+  ) async {
+    try {
+      debugPrint('📡 Updating equipment in Sheets (ID: $id)...');
+
+      final response = await http
+          .post(
+            Uri.parse(webAppUrl),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'action': 'updateEquipment',
+              'id': id,
+              'updatedAt':
+                  equipment['updated_at'] ?? DateTime.now().toIso8601String(),
+              ...equipment,
+            }),
+          )
+          .timeout(_timeout);
+
+      debugPrint('📡 Update equipment response status: ${response.statusCode}');
+
+      // Handle redirect (302)
+      if (response.statusCode == 302) {
+        debugPrint('📡 Got redirect for update equipment, following...');
+
+        final htmlBody = response.body;
+        final urlMatch = RegExp(r'HREF="([^"]+)"').firstMatch(htmlBody);
+
+        if (urlMatch != null) {
+          final redirectUrl = urlMatch.group(1)!.replaceAll('&amp;', '&');
+          debugPrint('📡 Update equipment redirect URL: $redirectUrl');
+
+          final redirectResponse = await http
+              .get(Uri.parse(redirectUrl))
+              .timeout(_timeout);
+
+          debugPrint(
+            '📡 Update equipment redirect response status: ${redirectResponse.statusCode}',
+          );
+
+          if (redirectResponse.statusCode == 200) {
+            final body =
+                jsonDecode(redirectResponse.body) as Map<String, dynamic>;
+            return {
+              'success': body['status'] == 'ok' || body['status'] == 'conflict',
+              'status': body['status'],
+              'message': body['message'],
+              'sheetUpdatedAt': body['sheetUpdatedAt'],
+            };
+          }
+        }
+      } else if (response.statusCode == 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        return {
+          'success': body['status'] == 'ok' || body['status'] == 'conflict',
+          'status': body['status'],
+          'message': body['message'],
+          'sheetUpdatedAt': body['sheetUpdatedAt'],
+        };
+      }
+      return {'success': false, 'status': 'error', 'message': 'HTTP error'};
+    } catch (e) {
+      debugPrint('❌ Error updating equipment: $e');
+      return {'success': false, 'status': 'error', 'message': e.toString()};
+    }
+  }
+
+  // ─── Delete equipment from Equipment sheet ────────────────────────────────
+
+  Future<bool> deleteEquipment(String webAppUrl, int id) async {
+    try {
+      debugPrint('📡 Deleting equipment from Sheets (ID: $id)...');
+
+      final response = await http
+          .post(
+            Uri.parse(webAppUrl),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'action': 'deleteEquipment', 'id': id}),
+          )
+          .timeout(_timeout);
+
+      debugPrint('📡 Delete equipment response status: ${response.statusCode}');
+
+      // Handle redirect (302)
+      if (response.statusCode == 302) {
+        debugPrint('📡 Got redirect for delete equipment, following...');
+
+        final htmlBody = response.body;
+        final urlMatch = RegExp(r'HREF="([^"]+)"').firstMatch(htmlBody);
+
+        if (urlMatch != null) {
+          final redirectUrl = urlMatch.group(1)!.replaceAll('&amp;', '&');
+          debugPrint('📡 Delete equipment redirect URL: $redirectUrl');
+
+          final redirectResponse = await http
+              .get(Uri.parse(redirectUrl))
+              .timeout(_timeout);
+
+          debugPrint(
+            '📡 Delete equipment redirect response status: ${redirectResponse.statusCode}',
+          );
+
+          if (redirectResponse.statusCode == 200) {
+            final body =
+                jsonDecode(redirectResponse.body) as Map<String, dynamic>;
+            return body['status'] == 'ok';
+          }
+        }
+      } else if (response.statusCode == 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        return body['status'] == 'ok';
+      }
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error deleting equipment: $e');
+      return false;
+    }
+  }
+
+  // ─── Add Transaction to Transactions sheet ───────────────────────────────
+
+  Future<Map<String, dynamic>> addTransaction(
+    String webAppUrl,
+    Map<String, dynamic> transaction,
+  ) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse(webAppUrl),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'action': 'addTransaction',
+              'id': transaction['id'],
+              'equipmentId': transaction['equipment_id'],
+              'userGmail': transaction['user_gmail'],
+              'borrowDate': transaction['borrow_date'],
+              'returnDate': transaction['return_date'],
+              'actualReturnDate': transaction['actual_return_date'],
+              'status': transaction['status'],
+              'notes': transaction['notes'],
+            }),
+          )
+          .timeout(_timeout);
+
+      // Handle both 200 and 302 (Google Apps Script redirect)
+      if (response.statusCode == 200 || response.statusCode == 302) {
+        if (response.statusCode == 302) {
+          return {'status': 'ok', 'message': 'Transaction added (302)'};
+        }
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+
+      return {'status': 'error', 'message': 'HTTP ${response.statusCode}'};
+    } catch (e) {
+      debugPrint('Error adding transaction: $e');
+      return {'status': 'error', 'message': e.toString()};
+    }
+  }
+
+  // ─── Record Return to Returns sheet ──────────────────────────────────────
+
+  Future<Map<String, dynamic>> recordReturn(
+    String webAppUrl, {
+    required int transactionId,
+    required int equipmentId,
+    required String equipmentName,
+    required String userGmail,
+    required String userName,
+    required String borrowDate,
+    required String returnDate,
+    required String actualReturnDate,
+    required String approvedBy,
+    String notes = '',
+  }) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse(webAppUrl),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'action': 'recordReturn',
+              'id': DateTime.now().millisecondsSinceEpoch.toString(),
+              'transactionId': transactionId.toString(),
+              'equipmentId': equipmentId.toString(),
+              'equipmentName': equipmentName,
+              'userGmail': userGmail,
+              'userName': userName,
+              'borrowDate': borrowDate,
+              'returnDate': returnDate,
+              'actualReturnDate': actualReturnDate,
+              'approvedBy': approvedBy,
+              'notes': notes,
+            }),
+          )
+          .timeout(_timeout);
+
+      // Handle both 200 and 302 (Google Apps Script redirect)
+      if (response.statusCode == 200 || response.statusCode == 302) {
+        if (response.statusCode == 302) {
+          return {'status': 'ok', 'message': 'Return recorded (302)'};
+        }
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+
+      return {'status': 'error', 'message': 'HTTP ${response.statusCode}'};
+    } catch (e) {
+      debugPrint('Error recording return: $e');
+      return {'status': 'error', 'message': e.toString()};
     }
   }
 }

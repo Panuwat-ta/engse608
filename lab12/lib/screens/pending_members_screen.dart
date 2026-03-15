@@ -128,6 +128,30 @@ class _PendingMembersScreenState extends State<PendingMembersScreen> {
 
   Future<void> _updateStatus(String gmail, String newStatus) async {
     final appProvider = context.read<AppProvider>();
+
+    // Show loading indicator
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('กำลังอนุมัติ...'),
+            ],
+          ),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
+
     bool ok = await SheetsService.instance.updateMemberStatus(
       appProvider.webAppUrl,
       gmail,
@@ -135,13 +159,14 @@ class _PendingMembersScreenState extends State<PendingMembersScreen> {
     );
 
     if (ok) {
+      // Update local database
       await DatabaseHelper.instance.updateUserStatus(gmail, newStatus);
+
+      // Remove from pending list immediately
       setState(() {
-        final idx = _allMembers.indexWhere((m) => m['Gmail'] == gmail);
-        if (idx != -1) {
-          _allMembers[idx] = Map.from(_allMembers[idx])..['Status'] = newStatus;
-        }
+        _allMembers.removeWhere((m) => m['Gmail'] == gmail);
       });
+
       if (mounted) {
         String msg = newStatus == 'Active'
             ? 'อนุมัติ $gmail สำเร็จ'
@@ -152,6 +177,9 @@ class _PendingMembersScreenState extends State<PendingMembersScreen> {
           SnackBar(content: Text('✅ $msg'), backgroundColor: Colors.green),
         );
       }
+
+      // Reload from database to ensure data is fresh
+      await _reloadFromDatabase();
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -279,7 +307,8 @@ class _PendingMembersScreenState extends State<PendingMembersScreen> {
                     child: ListView.separated(
                       padding: const EdgeInsets.all(16),
                       itemCount: _allMembers.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 10),
                       itemBuilder: (ctx, i) {
                         final m = _allMembers[i];
 

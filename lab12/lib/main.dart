@@ -31,7 +31,6 @@ class CommunityToolApp extends StatelessWidget {
           seedColor: const Color(0xFF2196F3),
           brightness: Brightness.dark,
           surface: const Color(0xFF121212),
-          background: const Color(0xFF121212),
         ),
         scaffoldBackgroundColor: const Color(0xFF121212),
         fontFamily: 'Roboto',
@@ -81,7 +80,6 @@ class CommunityToolApp extends StatelessWidget {
           seedColor: const Color(0xFF2196F3),
           brightness: Brightness.dark,
           surface: const Color(0xFF121212),
-          background: const Color(0xFF121212),
         ),
         scaffoldBackgroundColor: const Color(0xFF121212),
         appBarTheme: const AppBarTheme(

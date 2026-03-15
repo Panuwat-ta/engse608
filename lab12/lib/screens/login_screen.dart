@@ -13,6 +13,7 @@ import 'admin_home_screen.dart';
 import 'user_home_screen.dart';
 import 'pin_setup_screen.dart';
 import 'force_update_admin_credentials_screen.dart';
+import 'pending_approval_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -51,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (appProvider.checkAdminCredentials(gmail, password)) {
       appProvider.loginAsAdmin(gmail);
       if (!mounted) return;
-      
+
       // ── Admin Security Check: Force update if using defaults ──────────
       if (appProvider.isUsingDefaultAdminCredentials) {
         Navigator.of(context).pushReplacement(
@@ -81,8 +82,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (webAppUrl.isNotEmpty) {
       try {
-        final sheetData =
-            await SheetsService.instance.checkUser(webAppUrl, gmail);
+        final sheetData = await SheetsService.instance.checkUser(
+          webAppUrl,
+          gmail,
+        );
         if (sheetData != null) {
           user = UserModel(
             name: sheetData['Name']?.toString() ?? '',
@@ -91,7 +94,8 @@ class _LoginScreenState extends State<LoginScreen> {
             villageCode: sheetData['VillageCode']?.toString() ?? '',
             passwordHash: sheetData['PasswordHash']?.toString() ?? '',
             lat: double.tryParse(sheetData['Latitude']?.toString() ?? '0') ?? 0,
-            lng: double.tryParse(sheetData['Longitude']?.toString() ?? '0') ?? 0,
+            lng:
+                double.tryParse(sheetData['Longitude']?.toString() ?? '0') ?? 0,
             status: sheetData['Status']?.toString() ?? 'Pending',
           );
           // Upsert local DB (so hash is also stored locally)
@@ -101,9 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     // ── 3. Fallback: check local SQLite ──────────────────────────────────────
-    if (user == null) {
-      user = await DatabaseHelper.instance.getUserByGmail(gmail);
-    }
+    user ??= await DatabaseHelper.instance.getUserByGmail(gmail);
 
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -127,9 +129,31 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    // ── 5. Check user status ──────────────────────────────────────
+    if (user.status == 'Pending') {
+      // User is still pending approval
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => PendingApprovalScreen(
+            userName: user!.name,
+            userGmail: user.gmail,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // ── 6. Check if status is Rejected ────────────────────────────
+    if (user.status == 'Rejected') {
+      setState(() => _error = '❌ บัญชีของคุณถูกปฏิเสธ กรุณาติดต่อผู้ดูแลระบบ');
+      return;
+    }
+
+    // ── 7. Login successful (status is Active) ───────────────────
     if (!mounted) return;
     appProvider.loginAs(user);
-    
+
     // After login, check if user needs to set up a PIN
     if (!appProvider.hasPin) {
       Navigator.of(context).pushReplacement(
@@ -165,8 +189,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: cs.primaryContainer,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.handshake_rounded,
-                        size: 52, color: cs.primary),
+                    child: Icon(
+                      Icons.handshake_rounded,
+                      size: 52,
+                      color: cs.primary,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -174,16 +201,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Text(
                     'Community Tools',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 Center(
                   child: Text(
                     'ระบบยืม-คืนอุปกรณ์ชุมชน',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                      color: cs.onSurfaceVariant,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 40),
@@ -200,7 +227,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     hintText: 'example@gmail.com',
                     prefixIcon: const Icon(Icons.email_rounded),
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return 'กรุณากรอก Gmail';
@@ -211,8 +239,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 16),
 
                 // Password
-                Text('รหัสผ่าน',
-                    style: Theme.of(context).textTheme.labelLarge),
+                Text('รหัสผ่าน', style: Theme.of(context).textTheme.labelLarge),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _passwordCtrl,
@@ -223,12 +250,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     suffixIcon: IconButton(
                       onPressed: () =>
                           setState(() => _obscurePassword = !_obscurePassword),
-                      icon: Icon(_obscurePassword
-                          ? Icons.visibility_rounded
-                          : Icons.visibility_off_rounded),
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_rounded
+                            : Icons.visibility_off_rounded,
+                      ),
                     ),
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'กรุณากรอกรหัสผ่าน';
@@ -241,9 +271,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Text(
                     '* รหัสผ่านที่ตั้งไว้ตอนสมัครสมาชิก',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                          fontSize: 11,
-                        ),
+                      color: cs.onSurfaceVariant,
+                      fontSize: 11,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -257,8 +287,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: cs.errorContainer,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text(_error,
-                        style: TextStyle(color: cs.onErrorContainer)),
+                    child: Text(
+                      _error,
+                      style: TextStyle(color: cs.onErrorContainer),
+                    ),
                   ),
 
                 // Login button
@@ -272,10 +304,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
                         : const Icon(Icons.login_rounded),
-                    label:
-                        Text(_isLoading ? 'กำลังตรวจสอบ...' : 'เข้าสู่ระบบ'),
+                    label: Text(_isLoading ? 'กำลังตรวจสอบ...' : 'เข้าสู่ระบบ'),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -284,8 +318,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Center(
                   child: TextButton.icon(
                     onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const RegisterScreen()),
+                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
                     ),
                     icon: const Icon(Icons.person_add_rounded),
                     label: const Text('ยังไม่มีบัญชี? สมัครสมาชิก'),

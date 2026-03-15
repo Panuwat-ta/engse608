@@ -2,6 +2,7 @@
 // Screen for managing borrow/return transactions
 
 import 'package:flutter/material.dart';
+import '../database/database_helper.dart';
 
 class ManageTransactionsScreen extends StatefulWidget {
   const ManageTransactionsScreen({super.key});
@@ -12,9 +13,10 @@ class ManageTransactionsScreen extends StatefulWidget {
 }
 
 class _ManageTransactionsScreenState extends State<ManageTransactionsScreen> {
-  final List<Map<String, dynamic>> _transactions = [];
+  List<Map<String, dynamic>> _transactions = [];
   bool _loading = false;
-  String _filter = 'All'; // 'All', 'Borrowed', 'Returned', 'Overdue'
+  String _filter =
+      'All'; // 'All', 'Borrowed', 'Returned', 'Completed', 'Overdue'
 
   @override
   void initState() {
@@ -24,9 +26,36 @@ class _ManageTransactionsScreenState extends State<ManageTransactionsScreen> {
 
   Future<void> _loadTransactions() async {
     setState(() => _loading = true);
-    // TODO: Load from database/sheets
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() => _loading = false);
+
+    try {
+      final transactions = await DatabaseHelper.instance.getAllTransactions();
+
+      // Check for overdue transactions
+      final now = DateTime.now();
+      for (var tx in transactions) {
+        if (tx['status'] == 'Borrowed') {
+          final returnDate = DateTime.parse(tx['return_date']);
+          if (now.isAfter(returnDate)) {
+            tx['status'] = 'Overdue';
+          }
+        }
+      }
+
+      setState(() {
+        _transactions = transactions;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() => _loading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('เกิดข้อผิดพลาด: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   List<Map<String, dynamic>> get _filteredTransactions {
@@ -71,9 +100,17 @@ class _ManageTransactionsScreenState extends State<ManageTransactionsScreen> {
                   ),
                   const SizedBox(width: 8),
                   _FilterChip(
-                    label: 'คืนแล้ว',
+                    label: 'รอการอนุมัติ',
                     selected: _filter == 'Returned',
                     onTap: () => setState(() => _filter = 'Returned'),
+                    color: Colors.orange,
+                  ),
+                  const SizedBox(width: 8),
+                  _FilterChip(
+                    label: 'คืนแล้ว',
+                    selected: _filter == 'Completed',
+                    onTap: () => setState(() => _filter = 'Completed'),
+                    color: Colors.green,
                   ),
                   const SizedBox(width: 8),
                   _FilterChip(
@@ -165,6 +202,8 @@ class _ManageTransactionsScreenState extends State<ManageTransactionsScreen> {
       case 'Borrowed':
         return Colors.blue;
       case 'Returned':
+        return Colors.orange;
+      case 'Completed':
         return Colors.green;
       case 'Overdue':
         return Colors.red;
@@ -178,6 +217,8 @@ class _ManageTransactionsScreenState extends State<ManageTransactionsScreen> {
       case 'Borrowed':
         return Icons.schedule_rounded;
       case 'Returned':
+        return Icons.hourglass_top_rounded;
+      case 'Completed':
         return Icons.check_circle_rounded;
       case 'Overdue':
         return Icons.warning_rounded;

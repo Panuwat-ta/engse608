@@ -21,7 +21,6 @@ class _ForceUpdateAdminCredentialsScreenState
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   final _confirmPassCtrl = TextEditingController();
-  final _villageCodeCtrl = TextEditingController();
   bool _obscure = true;
   bool _isSaving = false;
 
@@ -127,8 +126,9 @@ class _ForceUpdateAdminCredentialsScreenState
                       ),
                     ),
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty)
+                      if (v == null || v.trim().isEmpty) {
                         return 'กรุณากรอกอีเมล';
+                      }
                       if (!v.contains('@')) return 'อีเมลไม่ถูกต้อง';
                       if (v.trim().toLowerCase() ==
                           AppProvider.defaultAdminEmail) {
@@ -163,8 +163,9 @@ class _ForceUpdateAdminCredentialsScreenState
                     ),
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'กรุณากรอกรหัสผ่าน';
-                      if (v.length < 6)
+                      if (v.length < 6) {
                         return 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
+                      }
                       if (v == AppProvider.defaultAdminPassword) {
                         return 'กรุณาใช้รหัสผ่านอื่นที่ไม่ใช่ค่าเริ่มต้น';
                       }

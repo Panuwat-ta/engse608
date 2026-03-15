@@ -7,7 +7,6 @@ import '../providers/app_provider.dart';
 import '../services/sheets_service.dart';
 import '../services/sync_service.dart';
 import '../database/database_helper.dart';
-import 'add_admin_screen.dart';
 
 class ManageAdminsScreen extends StatefulWidget {
   const ManageAdminsScreen({super.key});
@@ -128,13 +127,15 @@ class _ManageAdminsScreenState extends State<ManageAdminsScreen> {
         // Delete from Local Database
         await DatabaseHelper.instance.deleteAdmin(gmail);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ ลบ Admin "$name" สำเร็จ'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _loadAdmins(); // Reload list
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ ลบ Admin "$name" สำเร็จ'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          _loadAdmins(); // Reload list
+        }
       } else {
         throw Exception('Failed to delete admin');
       }
@@ -265,7 +266,7 @@ class _ManageAdminsScreenState extends State<ManageAdminsScreen> {
                           child: ListView.separated(
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                             itemCount: _admins.length,
-                            separatorBuilder: (_, __) =>
+                            separatorBuilder: (context, index) =>
                                 const SizedBox(height: 12),
                             itemBuilder: (ctx, i) {
                               final admin = _admins[i];
@@ -420,7 +421,7 @@ class _ManageAdminsScreenState extends State<ManageAdminsScreen> {
                                           Expanded(
                                             child: Text(
                                               createdAt.isNotEmpty
-                                                  ? 'สร้างเมื่อ: $createdAt'
+                                                  ? 'สร้างเมื่อ: ${_formatThaiDateTime(createdAt)}'
                                                   : 'ไม่ระบุวันที่',
                                               style: TextStyle(
                                                 fontSize: 12,
@@ -463,18 +464,40 @@ class _ManageAdminsScreenState extends State<ManageAdminsScreen> {
                 ),
               ],
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result = await Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const AddAdminScreen()));
-          if (result == true) {
-            _loadAdmins(); // Reload list after adding
-          }
-        },
-        icon: const Icon(Icons.person_add_rounded),
-        label: const Text('เพิ่ม Admin'),
-      ),
     );
+  }
+
+  String _formatThaiDateTime(String dateTimeStr) {
+    try {
+      final dateTime = DateTime.parse(dateTimeStr);
+      final thaiDateTime = dateTime.add(
+        const Duration(hours: 7),
+      ); // Convert to GMT+7
+
+      const thaiMonths = [
+        'ม.ค.',
+        'ก.พ.',
+        'มี.ค.',
+        'เม.ย.',
+        'พ.ค.',
+        'มิ.ย.',
+        'ก.ค.',
+        'ส.ค.',
+        'ก.ย.',
+        'ต.ค.',
+        'พ.ย.',
+        'ธ.ค.',
+      ];
+
+      final day = thaiDateTime.day;
+      final month = thaiMonths[thaiDateTime.month - 1];
+      final year = thaiDateTime.year + 543; // Convert to Buddhist year
+      final hour = thaiDateTime.hour.toString().padLeft(2, '0');
+      final minute = thaiDateTime.minute.toString().padLeft(2, '0');
+
+      return '$day $month $year เวลา $hour:$minute น.';
+    } catch (e) {
+      return dateTimeStr;
+    }
   }
 }

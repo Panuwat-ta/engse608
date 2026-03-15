@@ -1,21 +1,21 @@
+// lib/screens/user_profile_screen.dart
+// Profile screen for regular users
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
-import 'pending_members_screen.dart';
-import 'add_admin_screen.dart';
-import 'manage_admins_screen.dart';
 
-class AdminProfileScreen extends StatefulWidget {
-  const AdminProfileScreen({super.key});
+class UserProfileScreen extends StatefulWidget {
+  const UserProfileScreen({super.key});
 
   @override
-  State<AdminProfileScreen> createState() => _AdminProfileScreenState();
+  State<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
-class _AdminProfileScreenState extends State<AdminProfileScreen> {
+class _UserProfileScreenState extends State<UserProfileScreen> {
   final ImagePicker _picker = ImagePicker();
 
   Future<void> _pickImage(AppProvider ap) async {
@@ -29,9 +29,18 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final ap = context.watch<AppProvider>();
+    final currentUser = ap.currentUser;
+
+    // If no current user, go back
+    if (currentUser == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).pop();
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('โปรไฟล์และตั้งค่า'), centerTitle: true),
+      appBar: AppBar(title: const Text('โปรไฟล์'), centerTitle: true),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -88,54 +97,50 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Admin: ${ap.adminEmail.split('@')[0]}',
+              currentUser.name,
               style: Theme.of(
                 context,
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
-            Text(ap.adminEmail, style: TextStyle(color: cs.onSurfaceVariant)),
+            Text(
+              currentUser.gmail,
+              style: TextStyle(color: cs.onSurfaceVariant),
+            ),
             const SizedBox(height: 32),
 
-            // Credentials Section
+            // Account Info Section
             _SectionHeader(
-              title: 'ข้อมูลเข้าสู่ระบบ',
-              icon: Icons.vpn_key_rounded,
+              title: 'ข้อมูลบัญชี',
+              icon: Icons.person_outline_rounded,
             ),
             const SizedBox(height: 12),
-            _SettingsTile(
+            _InfoTile(
               icon: Icons.email_outlined,
-              title: 'Admin Email',
-              value: ap.adminEmail,
-              onTap: () =>
-                  _showEditDialog(context, 'Email', ap.adminEmail, (v) {
-                    ap.saveAdminCredentials(
-                      newEmail: v,
-                      newPassword: ap.adminPassword,
-                    );
-                  }),
-            ),
-            const SizedBox(height: 10),
-            _SettingsTile(
-              icon: Icons.lock_outline_rounded,
-              title: 'รหัสผ่าน',
-              value: '●' * ap.adminPassword.length,
-              onTap: () => _showEditDialog(context, 'รหัสผ่าน', '', (v) {
-                ap.saveAdminCredentials(
-                  newEmail: ap.adminEmail,
-                  newPassword: v,
+              title: 'อีเมล',
+              value: currentUser.gmail,
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: currentUser.gmail));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('✅ คัดลอกอีเมลแล้ว'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 2),
+                  ),
                 );
-              }, isPassword: true),
+              },
             ),
             const SizedBox(height: 10),
-            _SettingsTile(
+            _InfoTile(
               icon: Icons.home_work_outlined,
               title: 'รหัสหมู่บ้าน',
-              value: ap.adminVillageCode.isEmpty
+              value: currentUser.villageCode.isEmpty
                   ? 'ยังไม่ได้ตั้งค่า'
-                  : ap.adminVillageCode,
+                  : currentUser.villageCode,
               onTap: () {
-                if (ap.adminVillageCode.isNotEmpty) {
-                  Clipboard.setData(ClipboardData(text: ap.adminVillageCode));
+                if (currentUser.villageCode.isNotEmpty) {
+                  Clipboard.setData(
+                    ClipboardData(text: currentUser.villageCode),
+                  );
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('✅ คัดลอกรหัสหมู่บ้านแล้ว'),
@@ -145,59 +150,58 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                   );
                 }
               },
-              isCopyOnly: true,
-            ),
-
-            const SizedBox(height: 32),
-
-            // Management Section
-            _SectionHeader(
-              title: 'การจัดการระบบ',
-              icon: Icons.admin_panel_settings_outlined,
-            ),
-            const SizedBox(height: 12),
-            _SettingsTile(
-              icon: Icons.group_add_outlined,
-              title: 'จัดการผู้ดูแล (Admin)',
-              value: 'แก้ไขหรือลบสิทธ์ ผู้ดูแลท่านอื่น',
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ManageAdminsScreen()),
-                );
-              },
             ),
             const SizedBox(height: 10),
-            _SettingsTile(
-              icon: Icons.people_outline_rounded,
-              title: 'จัดการสมาชิกทั่วไป',
-              value: 'อนุมัติหรือปฏิเสธสมาชิกที่สมัครเข้ามา',
+            _InfoTile(
+              icon: Icons.lock_outline_rounded,
+              title: 'รหัสผ่าน',
+              value: '●' * 8,
+              onTap: () => _showChangePasswordDialog(context, ap),
+            ),
+            const SizedBox(height: 32),
+
+            // Settings Section
+            _SectionHeader(title: 'การตั้งค่า', icon: Icons.settings_outlined),
+            const SizedBox(height: 12),
+            _InfoTile(
+              icon: Icons.notifications_outlined,
+              title: 'การแจ้งเตือน',
+              value: 'เปิดใช้งาน',
               onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const PendingMembersScreen(),
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('🚧 ฟีเจอร์กำลังพัฒนา'),
+                    backgroundColor: Colors.orange,
                   ),
                 );
               },
             ),
             const SizedBox(height: 10),
-            _SettingsTile(
-              icon: Icons.person_add_alt_rounded,
-              title: 'เพิ่ม Admin ใหม่',
-              value: 'เพิ่มผู้ดูแลระบบท่านใหม่',
-              onTap: () async {
-                final navigator = Navigator.of(context);
-                final messenger = ScaffoldMessenger.of(context);
-                final result = await navigator.push(
-                  MaterialPageRoute(builder: (_) => const AddAdminScreen()),
+            _InfoTile(
+              icon: Icons.language_rounded,
+              title: 'ภาษา',
+              value: 'ไทย',
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('🚧 ฟีเจอร์กำลังพัฒนา'),
+                    backgroundColor: Colors.orange,
+                  ),
                 );
-                if (result == true && mounted) {
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('✅ เพิ่ม Admin สำเร็จแล้ว'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
+              },
+            ),
+            const SizedBox(height: 10),
+            _InfoTile(
+              icon: Icons.help_outline_rounded,
+              title: 'ช่วยเหลือ',
+              value: 'คู่มือการใช้งาน',
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('🚧 ฟีเจอร์กำลังพัฒนา'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
               },
             ),
             const SizedBox(height: 24),
@@ -207,22 +211,16 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     );
   }
 
-  void _showEditDialog(
-    BuildContext context,
-    String label,
-    String initialValue,
-    Function(String) onSave, {
-    bool isPassword = false,
-  }) {
-    final ctrl = TextEditingController(text: initialValue);
+  void _showChangePasswordDialog(BuildContext context, AppProvider ap) {
+    final ctrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
-    bool obscure = isPassword;
+    bool obscure = true;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: Text('แก้ไข $label'),
+          title: const Text('เปลี่ยนรหัสผ่าน'),
           content: Form(
             key: formKey,
             child: TextFormField(
@@ -230,23 +228,15 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
               obscureText: obscure,
               autofocus: true,
               decoration: InputDecoration(
-                labelText: 'กรอก $label ใหม่',
-                suffixIcon: isPassword
-                    ? IconButton(
-                        icon: Icon(
-                          obscure ? Icons.visibility : Icons.visibility_off,
-                        ),
-                        onPressed: () =>
-                            setDialogState(() => obscure = !obscure),
-                      )
-                    : null,
+                labelText: 'รหัสผ่านใหม่',
+                suffixIcon: IconButton(
+                  icon: Icon(obscure ? Icons.visibility : Icons.visibility_off),
+                  onPressed: () => setDialogState(() => obscure = !obscure),
+                ),
               ),
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'กรุณากรอกข้อมูล';
-                if (!isPassword && label == 'Email' && !v.contains('@')) {
-                  return 'Email ไม่ถูกต้อง';
-                }
-                if (isPassword && v.length < 4) return 'รหัสผ่านสั้นเกินไป';
+                if (v == null || v.trim().isEmpty) return 'กรุณากรอกรหัสผ่าน';
+                if (v.length < 4) return 'รหัสผ่านสั้นเกินไป';
                 return null;
               },
             ),
@@ -259,11 +249,15 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             FilledButton(
               onPressed: () {
                 if (formKey.currentState!.validate()) {
-                  onSave(ctrl.text.trim());
+                  // For regular users, we can't change password here
+                  // Password is managed through registration
                   Navigator.pop(ctx);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('✅ อัปเดต $label สำเร็จ')),
+                      const SnackBar(
+                        content: Text('🚧 ติดต่อ Admin เพื่อเปลี่ยนรหัสผ่าน'),
+                        backgroundColor: Colors.orange,
+                      ),
                     );
                   }
                 }
@@ -303,19 +297,17 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _SettingsTile extends StatelessWidget {
+class _InfoTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String value;
   final VoidCallback onTap;
-  final bool isCopyOnly;
 
-  const _SettingsTile({
+  const _InfoTile({
     required this.icon,
     required this.title,
     required this.value,
     required this.onTap,
-    this.isCopyOnly = false,
   });
 
   @override
@@ -361,7 +353,7 @@ class _SettingsTile extends StatelessWidget {
                 ),
               ),
               Icon(
-                isCopyOnly ? Icons.content_copy_rounded : Icons.edit_rounded,
+                Icons.chevron_right_rounded,
                 size: 20,
                 color: cs.onSurfaceVariant.withAlpha(100),
               ),

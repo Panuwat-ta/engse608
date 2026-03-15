@@ -2,6 +2,9 @@
 // Screen for managing equipment/tools
 
 import 'package:flutter/material.dart';
+import '../database/database_helper.dart';
+import 'add_equipment_screen.dart';
+import 'edit_equipment_screen.dart';
 
 class ManageEquipmentScreen extends StatefulWidget {
   const ManageEquipmentScreen({super.key});
@@ -11,7 +14,7 @@ class ManageEquipmentScreen extends StatefulWidget {
 }
 
 class _ManageEquipmentScreenState extends State<ManageEquipmentScreen> {
-  final List<Map<String, dynamic>> _equipment = [];
+  List<Map<String, dynamic>> _equipment = [];
   bool _loading = false;
 
   @override
@@ -22,9 +25,20 @@ class _ManageEquipmentScreenState extends State<ManageEquipmentScreen> {
 
   Future<void> _loadEquipment() async {
     setState(() => _loading = true);
-    // TODO: Load from database/sheets
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() => _loading = false);
+    try {
+      final equipment = await DatabaseHelper.instance.getAllEquipment();
+      if (mounted) {
+        setState(() {
+          _equipment = equipment;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading equipment: $e');
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
   }
 
   @override
@@ -83,18 +97,47 @@ class _ManageEquipmentScreenState extends State<ManageEquipmentScreen> {
                       child: Icon(Icons.build_rounded, color: cs.primary),
                     ),
                     title: Text(item['name'] ?? ''),
-                    subtitle: Text(item['category'] ?? ''),
-                    trailing: Text(
-                      '${item['available']}/${item['quantity']}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    subtitle: Text(
+                      '${item['category']} • ${item['description']}',
                     ),
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${item['available']}/${item['quantity']}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          'ว่าง/ทั้งหมด',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                    onTap: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => EditEquipmentScreen(equipment: item),
+                        ),
+                      );
+                      _loadEquipment();
+                    },
                   ),
                 );
               },
             ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // TODO: Add equipment
+        onPressed: () async {
+          await Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const AddEquipmentScreen()));
+          _loadEquipment();
         },
         icon: const Icon(Icons.add_rounded),
         label: const Text('เพิ่มอุปกรณ์'),

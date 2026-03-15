@@ -18,7 +18,7 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
   List<Map<String, dynamic>> _allMembers = [];
   bool _loading = true;
   String _error = '';
-  String _filter = 'All'; // 'All', 'Active', 'Admin'
+  // Removed filter since we only show Active members
 
   @override
   void initState() {
@@ -45,9 +45,9 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
       // Load from Local Database first (instant display)
       final users = await DatabaseHelper.instance.getAllUsers();
 
-      // Filter only approved members (Active and Admin)
+      // Filter only Active members (exclude Admin)
       final approvedUsers = users
-          .where((user) => user.status == 'Active' || user.status == 'Admin')
+          .where((user) => user.status == 'Active')
           .toList();
 
       // Convert UserModel to Map format for compatibility
@@ -73,7 +73,7 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
           _error =
               'ยังไม่มีสมาชิกที่อนุมัติแล้ว\n\n'
               'หน้านี้แสดงรายชื่อสมาชิกที่ได้รับการอนุมัติแล้ว\n'
-              '(สถานะ Active หรือ Admin)';
+              '(สถานะ Active เท่านั้น)';
         }
       });
 
@@ -96,9 +96,9 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
     try {
       final users = await DatabaseHelper.instance.getAllUsers();
 
-      // Filter only approved members
+      // Filter only Active members (exclude Admin)
       final approvedUsers = users
-          .where((user) => user.status == 'Active' || user.status == 'Admin')
+          .where((user) => user.status == 'Active')
           .toList();
 
       final members = approvedUsers
@@ -126,20 +126,11 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
     }
   }
 
-  List<Map<String, dynamic>> get _filteredMembers {
-    if (_filter == 'All') return _allMembers;
-    return _allMembers
-        .where((m) => m['Status']?.toString() == _filter)
-        .toList();
-  }
+  // No filtering needed since we only load Active members
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final activeCount = _allMembers
-        .where((m) => m['Status'] == 'Active')
-        .length;
-    final adminCount = _allMembers.where((m) => m['Status'] == 'Admin').length;
 
     return Scaffold(
       appBar: AppBar(
@@ -159,29 +150,34 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
           if (!_loading && _error.isEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Row(
-                children: [
-                  _StatChip(
-                    label: 'ทั้งหมด ${_allMembers.length}',
-                    color: cs.primary,
-                    selected: _filter == 'All',
-                    onTap: () => setState(() => _filter = 'All'),
-                  ),
-                  const SizedBox(width: 8),
-                  _StatChip(
-                    label: 'สมาชิก $activeCount',
-                    color: Colors.green,
-                    selected: _filter == 'Active',
-                    onTap: () => setState(() => _filter = 'Active'),
-                  ),
-                  const SizedBox(width: 8),
-                  _StatChip(
-                    label: 'Admin $adminCount',
-                    color: Colors.blue,
-                    selected: _filter == 'Admin',
-                    onTap: () => setState(() => _filter = 'Admin'),
-                  ),
-                ],
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.green.withAlpha(30),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: Colors.green,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'สมาชิก ${_allMembers.length} คน',
+                      style: const TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           const SizedBox(height: 8),
@@ -221,7 +217,7 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
                       ),
                     ),
                   )
-                : _filteredMembers.isEmpty
+                : _allMembers.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -243,23 +239,17 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
                     onRefresh: _loadMembers,
                     child: ListView.separated(
                       padding: const EdgeInsets.all(16),
-                      itemCount: _filteredMembers.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemCount: _allMembers.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 10),
                       itemBuilder: (ctx, i) {
-                        final m = _filteredMembers[i];
-                        final status = m['Status']?.toString() ?? '';
-                        final isAdmin = status == 'Admin';
+                        final m = _allMembers[i];
 
                         return Card(
                           elevation: 0,
-                          color: isAdmin
-                              ? Colors.blue.shade50
-                              : cs.surfaceContainerHighest,
+                          color: cs.surfaceContainerHighest,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
-                            side: isAdmin
-                                ? BorderSide(color: Colors.blue.shade300)
-                                : BorderSide.none,
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
@@ -270,18 +260,14 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
                                   children: [
                                     CircleAvatar(
                                       radius: 22,
-                                      backgroundColor: isAdmin
-                                          ? Colors.blue.shade100
-                                          : Colors.green.shade100,
+                                      backgroundColor: Colors.green.shade100,
                                       child: Text(
                                         (m['Name']?.toString() ?? 'U')
                                             .substring(0, 1)
                                             .toUpperCase(),
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
-                                          color: isAdmin
-                                              ? Colors.blue.shade800
-                                              : Colors.green.shade800,
+                                          color: Colors.green.shade800,
                                         ),
                                       ),
                                     ),
@@ -307,7 +293,24 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
                                         ],
                                       ),
                                     ),
-                                    _StatusBadge(status: status),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.shade100,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        'Active',
+                                        style: TextStyle(
+                                          color: Colors.green.shade800,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
                                   ],
                                 ),
                                 if (m['Address'] != null &&
@@ -350,75 +353,4 @@ class _AllMembersScreenState extends State<AllMembersScreen> {
   }
 }
 
-class _StatChip extends StatelessWidget {
-  final String label;
-  final Color color;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _StatChip({
-    required this.label,
-    required this.color,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? color : color.withAlpha(30),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? Colors.white : color,
-            fontWeight: FontWeight.bold,
-            fontSize: 13,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  final String status;
-
-  const _StatusBadge({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    Color bg;
-    Color fg;
-    switch (status) {
-      case 'Active':
-        bg = Colors.green.shade100;
-        fg = Colors.green.shade800;
-        break;
-      case 'Admin':
-        bg = Colors.blue.shade100;
-        fg = Colors.blue.shade800;
-        break;
-      default:
-        bg = Colors.grey.shade100;
-        fg = Colors.grey.shade800;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-}
+// Removed _StatChip and _StatusBadge widgets since we only show Active members

@@ -15,7 +15,7 @@ import 'all_members_screen.dart';
 import 'admin_profile_screen.dart';
 import 'manage_transactions_screen.dart';
 import 'manage_equipment_screen.dart';
-import 'debug_sync_screen.dart';
+import 'pending_returns_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -43,6 +43,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     try {
       // Load from Local Database first (instant display)
       final localUsers = await DatabaseHelper.instance.getAllUsers();
+      final localEquipment = await DatabaseHelper.instance.getAllEquipment();
 
       setState(() {
         _totalCount = localUsers.length;
@@ -51,14 +52,24 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         _loading = false;
       });
 
-      // Sync in background if URL is configured
+      // If Local DB is empty and URL is configured, force sync
       if (appProvider.webAppUrl.isNotEmpty) {
-        SyncService.instance.manualSync(appProvider.webAppUrl).then((result) {
-          if (mounted && result.success && result.usersSynced > 0) {
-            // Reload stats after sync completes
+        if (localUsers.isEmpty || localEquipment.isEmpty) {
+          debugPrint('⚠️ Local DB is empty, forcing sync...');
+          final result = await SyncService.instance.manualSync(
+            appProvider.webAppUrl,
+          );
+          if (mounted && result.success) {
             _reloadStats();
           }
-        });
+        } else {
+          // Normal background sync
+          SyncService.instance.manualSync(appProvider.webAppUrl).then((result) {
+            if (mounted && result.success && result.usersSynced > 0) {
+              _reloadStats();
+            }
+          });
+        }
       }
     } catch (e) {
       debugPrint('Error loading stats: $e');
@@ -108,7 +119,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               ),
             ),
             SizedBox(width: 12),
-            Text('กำลัง Sync...'),
+            Text('กำลัง Sync ข้อมูลทั้งหมด...'),
           ],
         ),
         duration: Duration(seconds: 2),
@@ -124,12 +135,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       if (!mounted) return;
 
       if (result.success) {
-        // Show success message
+        // Show detailed success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ Sync สำเร็จ: ${result.totalSynced} รายการ'),
+            content: Text('✅ ${result.detailMessage}'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 3),
           ),
         );
 
@@ -138,20 +149,22 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('⚠️ ${result.message}'),
-            backgroundColor: Colors.orange,
+            content: Text('❌ ${result.message}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
     } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ เกิดข้อผิดพลาด: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ เกิดข้อผิดพลาด: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -454,6 +467,23 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 ),
                 const SizedBox(height: 10),
 
+                // Pending returns approval
+                _ActionCard(
+                  icon: Icons.assignment_return_rounded,
+                  title: 'รอการยืนยันการคืน',
+                  subtitle: 'อนุมัติการคืนอุปกรณ์',
+                  badge: null,
+                  color: Colors.orange,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const PendingReturnsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+
                 // Reconfigure Sheet
                 _ActionCard(
                   icon: Icons.settings_rounded,
@@ -467,23 +497,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const AdminConfigScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-
-                // Debug Sync
-                _ActionCard(
-                  icon: Icons.bug_report_rounded,
-                  title: 'Debug Sync',
-                  subtitle: 'ทดสอบการ sync ข้อมูล',
-                  badge: null,
-                  color: Colors.purple,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const DebugSyncScreen(),
                       ),
                     );
                   },
