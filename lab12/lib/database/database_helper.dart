@@ -23,7 +23,7 @@ class DatabaseHelper {
     final path = join(dbPath, 'community_tool.db');
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -104,6 +104,7 @@ class DatabaseHelper {
         status            TEXT    NOT NULL DEFAULT 'Borrowed',
         notes             TEXT    NOT NULL DEFAULT '',
         created_at        TEXT    NOT NULL,
+        synced            INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (equipment_id) REFERENCES equipment_local (id)
       )
     ''');
@@ -321,6 +322,16 @@ class DatabaseHelper {
           FOREIGN KEY (equipment_id) REFERENCES equipment_local (id)
         )
       ''');
+    }
+    if (oldVersion < 7) {
+      // Add synced column to transactions_local table
+      try {
+        await db.execute(
+          'ALTER TABLE transactions_local ADD COLUMN synced INTEGER NOT NULL DEFAULT 0',
+        );
+      } catch (e) {
+        debugPrint('Synced column may already exist in transactions: $e');
+      }
     }
   }
 
@@ -647,6 +658,8 @@ class DatabaseHelper {
   /// Insert transaction
   Future<int> insertTransaction(Map<String, dynamic> transaction) async {
     final db = await database;
+    // Set synced=0 for new transactions (needs to be synced to Sheets)
+    transaction['synced'] = transaction['synced'] ?? 0;
     return await db.insert('transactions_local', transaction);
   }
 
@@ -728,6 +741,8 @@ class DatabaseHelper {
     Map<String, dynamic> transaction,
   ) async {
     final db = await database;
+    // Set synced=0 when updating (needs to be synced to Sheets)
+    transaction['synced'] = transaction['synced'] ?? 0;
     return await db.update(
       'transactions_local',
       transaction,
@@ -752,7 +767,7 @@ class DatabaseHelper {
       // Do NOT increase equipment availability yet
       await db.update(
         'transactions_local',
-        {'status': 'Returned', 'actual_return_date': now},
+        {'status': 'Returned', 'actual_return_date': now, 'synced': 0},
         where: 'id = ?',
         whereArgs: [transactionId],
       );
@@ -779,7 +794,7 @@ class DatabaseHelper {
       // Update transaction status to "Completed"
       await db.update(
         'transactions_local',
-        {'status': 'Completed'},
+        {'status': 'Completed', 'synced': 0},
         where: 'id = ?',
         whereArgs: [transactionId],
       );
@@ -831,6 +846,7 @@ class DatabaseHelper {
         'status': 'Borrowed',
         'notes': notes,
         'created_at': now,
+        'synced': 0, // Mark as unsynced
       });
 
       // Decrease equipment availability
@@ -894,5 +910,44 @@ class DatabaseHelper {
   Future<void> clearAllTransactions() async {
     final db = await database;
     await db.delete('transactions_local');
+  }
+
+  /// Add synced column to transactions table for future use
+  Future<void> addSyncedColumnToTransactions() async {
+    final db = await database;
+    try {
+      await db.execute(
+        'ALTER TABLE transactions_local ADD COLUMN synced INTEGER NOT NULL DEFAULT 0',
+      );
+    } catch (e) {
+      // Column may already exist
+      debugPrint('Synced column may already exist in transactions: $e');
+    }
+  }
+
+  /// Mark transaction as synced
+  Future<int> markTransactionAsSynced(int id) async {
+    final db = await database;
+    return await db.update(
+      'transactions_local',
+      {'synced': 1},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Get unsynced transactions
+  Future<List<Map<String, dynamic>>> getUnsyncedTransactions() async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT 
+        t.*,
+        e.name as equipment_name,
+        e.category as equipment_category
+      FROM transactions_local t
+      LEFT JOIN equipment_local e ON t.equipment_id = e.id
+      WHERE t.synced = 0
+      ORDER BY t.created_at ASC
+    ''');
   }
 }

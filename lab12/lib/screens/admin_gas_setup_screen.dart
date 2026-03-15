@@ -3,11 +3,11 @@
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart'
+    show Clipboard, ClipboardData, rootBundle;
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
-import '../services/gas_code_generator.dart';
 import '../services/sheets_service.dart';
 import '../services/hash_service.dart';
 import '../database/database_helper.dart';
@@ -26,6 +26,55 @@ class _AdminGasSetupScreenState extends State<AdminGasSetupScreen> {
   final _webAppUrlCtrl = TextEditingController();
   bool _copied = false;
   bool _saving = false;
+  String? _gasCode;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGasCode();
+  }
+
+  Future<void> _loadGasCode() async {
+    try {
+      final gasCodeTemplate = await rootBundle.loadString(
+        'complete_gas_code.js',
+      );
+      setState(() {
+        _gasCode = gasCodeTemplate.replaceFirst(
+          '1M9Gei9rC5yPjdMROFZosFwkDfr1jgSjgs4oBM5J10ks',
+          widget.spreadsheetId,
+        );
+      });
+    } catch (e) {
+      debugPrint('Error loading gas code: $e');
+      // Fallback: use a simple template
+      setState(() {
+        _gasCode =
+            '''
+// ════════════════════════════════════════════════════════════════
+//  Community Tool Sharing — Google Apps Script Backend
+//  วิธีใช้:
+//  1. เปิด Google Sheet → Extensions → Apps Script
+//  2. ลบโค้ดเดิมทั้งหมด แล้ววางโค้ดนี้
+//  3. กด Deploy → Manage Deployments
+//  4. คลิก Edit (ไอคอนดินสอ) ที่ deployment เดิม
+//  5. เปลี่ยน Version เป็น "New version"
+//  6. คลิก Deploy
+//  7. ใช้ Web App URL เดิม (ไม่ต้องเปลี่ยน URL ในแอป)
+// ════════════════════════════════════════════════════════════════
+
+// Error loading template from assets. 
+// Please copy the complete code from complete_gas_code.js manually
+// and replace SPREADSHEET_ID with: ${widget.spreadsheetId}
+
+const SPREADSHEET_ID = '${widget.spreadsheetId}';
+
+// กรุณาคัดลอกโค้ดจากไฟล์ complete_gas_code.js ในโปรเจค
+// และแทนที่ SPREADSHEET_ID ด้วย: ${widget.spreadsheetId}
+''';
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -255,7 +304,6 @@ class _AdminGasSetupScreenState extends State<AdminGasSetupScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final gasCode = GasCodeGenerator.generate(widget.spreadsheetId);
 
     return Scaffold(
       appBar: AppBar(
@@ -286,7 +334,7 @@ class _AdminGasSetupScreenState extends State<AdminGasSetupScreen> {
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(12),
                   child: SelectableText(
-                    gasCode,
+                    _gasCode ?? 'กำลังโหลดโค้ด...',
                     style: const TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 11,
@@ -300,7 +348,9 @@ class _AdminGasSetupScreenState extends State<AdminGasSetupScreen> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () => _copyCode(gasCode),
+                  onPressed: _gasCode != null
+                      ? () => _copyCode(_gasCode!)
+                      : null,
                   icon: Icon(
                     _copied ? Icons.check : Icons.copy_rounded,
                     color: _copied ? Colors.green : null,

@@ -28,33 +28,50 @@ class _PendingReturnsScreenState extends State<PendingReturnsScreen> {
     setState(() => _loading = true);
 
     try {
-      // Get all transactions with status "Returned" (pending admin approval)
-      final allTransactions = await DatabaseHelper.instance
-          .getAllTransactions();
+      final appProvider = context.read<AppProvider>();
 
-      final pending = allTransactions
-          .where((tx) => tx['status'] == 'Returned')
-          .toList();
-
-      // Enrich with equipment and user info
-      for (var tx in pending) {
-        final equipmentId = tx['equipment_id'] as int;
-        final equipment = await DatabaseHelper.instance.getEquipmentById(
-          equipmentId,
-        );
-        if (equipment != null) {
-          tx['equipment_name'] = equipment['name'];
-        }
-
-        final userGmail = tx['user_gmail'] as String;
-        final user = await DatabaseHelper.instance.getUserByGmail(userGmail);
-        if (user != null) {
-          tx['user_name'] = user.name;
-        }
+      if (appProvider.webAppUrl.isEmpty) {
+        setState(() => _loading = false);
+        return;
       }
 
+      // Fetch returns from Google Sheets
+      final returns = await SheetsService.instance.fetchAllReturns(
+        appProvider.webAppUrl,
+      );
+
+      // Filter only pending returns and map Thai headers to English
+      final pending = returns
+          .where((ret) => ret['อนุมัติโดย'] == 'รอการอนุมัติ')
+          .map(
+            (ret) => {
+              'ID': ret['ไอดี'],
+              'TransactionID': ret['ไอดีรายการยืม'],
+              'EquipmentID': ret['ไอดีอุปกรณ์'],
+              'EquipmentName': ret['ชื่ออุปกรณ์'],
+              'UserGmail': ret['อีเมลผู้ใช้'],
+              'UserName': ret['ชื่อผู้ใช้'],
+              'BorrowDate': ret['วันที่ยืม'],
+              'ReturnDate': ret['วันที่ต้องคืน'],
+              'ActualReturnDate': ret['วันที่คืนจริง'],
+              'Overdue': ret['เกินกำหนด'],
+              'Notes': ret['หมายเหตุ'],
+              'ApprovedBy': ret['อนุมัติโดย'],
+              'ApprovedAt': ret['วันที่อนุมัติ'],
+              'RecordedAt': ret['วันที่บันทึก'],
+              // Keep original Thai keys for backward compatibility
+              ...ret,
+            },
+          )
+          .toList();
+
+      // Convert to mutable maps
+      final enrichedPending = pending
+          .map((ret) => Map<String, dynamic>.from(ret))
+          .toList();
+
       setState(() {
-        _pendingReturns = pending;
+        _pendingReturns = enrichedPending;
         _loading = false;
       });
     } catch (e) {
@@ -74,58 +91,42 @@ class _PendingReturnsScreenState extends State<PendingReturnsScreen> {
     final appProvider = context.read<AppProvider>();
 
     try {
-      // Record return to Google Sheets
-      final result = await SheetsService.instance.recordReturn(
+      // Update approval status in Google Sheets
+      final success = await SheetsService.instance.updateReturnApproval(
         appProvider.webAppUrl,
-        transactionId: transaction['id'] as int,
-        equipmentId: transaction['equipment_id'] as int,
-        equipmentName: transaction['equipment_name'] ?? '',
-        userGmail: transaction['user_gmail'] ?? '',
-        userName: transaction['user_name'] ?? '',
-        borrowDate: transaction['borrow_date'] ?? '',
-        returnDate: transaction['return_date'] ?? '',
-        actualReturnDate:
-            transaction['actual_return_date'] ??
-            DateTime.now().toIso8601String(),
-        approvedBy: appProvider.adminEmail,
-        notes: transaction['notes'] ?? '',
+        transaction['ไอดี'].toString(),
+        appProvider.adminEmail,
       );
 
-      if (result['status'] == 'ok') {
+      if (success) {
         // Complete the return in local database (increase equipment availability)
-        final completed = await DatabaseHelper.instance.completeReturn(
-          transaction['id'] as int,
+        final transactionId = int.tryParse(
+          transaction['ไอดีรายการยืม'].toString(),
         );
+        if (transactionId != null) {
+          await DatabaseHelper.instance.completeReturn(transactionId);
+        }
 
-        if (completed) {
-          // Remove from pending list
-          setState(() {
-            _pendingReturns.removeWhere((tx) => tx['id'] == transaction['id']);
-          });
+        // Remove from pending list
+        setState(() {
+          _pendingReturns.removeWhere(
+            (tx) => tx['ไอดี'] == transaction['ไอดี'],
+          );
+        });
 
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('✅ อนุมัติการคืนสำเร็จ'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('❌ ไม่สามารถอัปเดตฐานข้อมูลได้'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ อนุมัติการคืนสำเร็จ'),
+              backgroundColor: Colors.green,
+            ),
+          );
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('❌ ${result['message']}'),
+            const SnackBar(
+              content: Text('❌ ไม่สามารถอนุมัติได้'),
               backgroundColor: Colors.red,
             ),
           );
@@ -184,12 +185,13 @@ class _PendingReturnsScreenState extends State<PendingReturnsScreen> {
               separatorBuilder: (context, index) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final tx = _pendingReturns[index];
-                final borrowDate = DateTime.parse(tx['borrow_date']);
-                final returnDate = DateTime.parse(tx['return_date']);
-                final actualReturnDate = tx['actual_return_date'] != null
-                    ? DateTime.parse(tx['actual_return_date'])
+                final borrowDate = DateTime.parse(
+                  tx['วันที่ยืม'] ?? DateTime.now().toIso8601String(),
+                );
+                final actualReturnDate = tx['วันที่คืนจริง'] != null
+                    ? DateTime.parse(tx['วันที่คืนจริง'])
                     : DateTime.now();
-                final isOverdue = actualReturnDate.isAfter(returnDate);
+                final isOverdue = tx['เกินกำหนด'] == 'Yes';
 
                 return Card(
                   elevation: 2,
@@ -228,14 +230,14 @@ class _PendingReturnsScreenState extends State<PendingReturnsScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    tx['equipment_name'] ?? 'อุปกรณ์',
+                                    tx['ชื่ออุปกรณ์'] ?? 'อุปกรณ์',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
                                     ),
                                   ),
                                   Text(
-                                    tx['user_name'] ?? tx['user_gmail'] ?? '',
+                                    tx['ชื่อผู้ใช้'] ?? tx['อีเมลผู้ใช้'] ?? '',
                                     style: TextStyle(
                                       fontSize: 13,
                                       color: cs.onSurfaceVariant,
@@ -297,11 +299,11 @@ class _PendingReturnsScreenState extends State<PendingReturnsScreen> {
                             ),
                           ],
                         ),
-                        if (tx['notes'] != null &&
-                            tx['notes'].toString().isNotEmpty) ...[
+                        if (tx['หมายเหตุ'] != null &&
+                            tx['หมายเหตุ'].toString().isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Text(
-                            'หมายเหตุ: ${tx['notes']}',
+                            'หมายเหตุ: ${tx['หมายเหตุ']}',
                             style: TextStyle(
                               fontSize: 12,
                               color: cs.onSurfaceVariant,

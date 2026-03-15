@@ -19,7 +19,15 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
   List<Map<String, dynamic>> _equipment = [];
   List<String> _categories = [];
   String _selectedCategory = 'ทั้งหมด';
+  String _searchQuery = '';
   bool _loading = true;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -93,6 +101,16 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
           .toList();
     }
 
+    // Filter by search query
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((e) {
+        final name = (e['name'] as String? ?? '').toLowerCase();
+        final description = (e['description'] as String? ?? '').toLowerCase();
+        final query = _searchQuery.toLowerCase();
+        return name.contains(query) || description.contains(query);
+      }).toList();
+    }
+
     // Filter only available equipment (available > 0)
     return filtered.where((e) {
       final available = e['available'] as int? ?? 0;
@@ -118,6 +136,39 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
       ),
       body: Column(
         children: [
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'ค้นหาอุปกรณ์...',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded),
+                        onPressed: () {
+                          setState(() {
+                            _searchController.clear();
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+                fillColor: cs.surfaceContainerHighest,
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+            ),
+          ),
+
           // Category filter
           if (!_loading && _categories.isNotEmpty)
             Container(

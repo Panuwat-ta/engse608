@@ -588,6 +588,78 @@ class SheetsService {
     }
   }
 
+  // ─── Fetch all transactions from Transactions sheet ──────────────────────
+
+  Future<List<Map<String, dynamic>>> fetchAllTransactions(
+    String webAppUrl,
+  ) async {
+    try {
+      debugPrint('📡 Fetching all transactions from Sheets...');
+
+      final response = await http
+          .post(
+            Uri.parse(webAppUrl),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'action': 'getAllTransactions'}),
+          )
+          .timeout(_timeout);
+
+      debugPrint('📡 Transactions response status: ${response.statusCode}');
+
+      // Handle redirect (302)
+      if (response.statusCode == 302) {
+        debugPrint('📡 Got redirect for transactions, following...');
+
+        final htmlBody = response.body;
+        final urlMatch = RegExp(r'HREF="([^"]+)"').firstMatch(htmlBody);
+
+        if (urlMatch != null) {
+          final redirectUrl = urlMatch.group(1)!.replaceAll('&amp;', '&');
+          debugPrint('📡 Transactions redirect URL: $redirectUrl');
+
+          final redirectResponse = await http
+              .get(Uri.parse(redirectUrl))
+              .timeout(_timeout);
+
+          debugPrint(
+            '📡 Transactions redirect response status: ${redirectResponse.statusCode}',
+          );
+
+          if (redirectResponse.statusCode == 200) {
+            final body =
+                jsonDecode(redirectResponse.body) as Map<String, dynamic>;
+            if (body['status'] == 'ok') {
+              final transactions = List<Map<String, dynamic>>.from(
+                body['transactions'] as List,
+              );
+              debugPrint(
+                '✅ Fetched ${transactions.length} transactions from Sheets (via redirect)',
+              );
+              return transactions;
+            }
+          }
+        }
+      } else if (response.statusCode == 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        if (body['status'] == 'ok') {
+          final transactions = List<Map<String, dynamic>>.from(
+            body['transactions'] as List,
+          );
+          debugPrint(
+            '✅ Fetched ${transactions.length} transactions from Sheets',
+          );
+          return transactions;
+        }
+      }
+
+      debugPrint('⚠️ No transactions returned from Sheets');
+      return [];
+    } catch (e) {
+      debugPrint('❌ Error fetching transactions: $e');
+      return [];
+    }
+  }
+
   // ─── Add Transaction to Transactions sheet ───────────────────────────────
 
   Future<Map<String, dynamic>> addTransaction(
@@ -650,8 +722,8 @@ class SheetsService {
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'action': 'recordReturn',
-              'id': DateTime.now().millisecondsSinceEpoch.toString(),
-              'transactionId': transactionId.toString(),
+              'transactionId': transactionId
+                  .toString(), // Use transaction ID as return ID
               'equipmentId': equipmentId.toString(),
               'equipmentName': equipmentName,
               'userGmail': userGmail,
@@ -677,6 +749,110 @@ class SheetsService {
     } catch (e) {
       debugPrint('Error recording return: $e');
       return {'status': 'error', 'message': e.toString()};
+    }
+  }
+
+  // ─── Fetch all returns from Returns sheet ────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> fetchAllReturns(String webAppUrl) async {
+    try {
+      debugPrint('📡 Fetching all returns from Sheets...');
+
+      final response = await http
+          .post(
+            Uri.parse(webAppUrl),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'action': 'getAllReturns'}),
+          )
+          .timeout(_timeout);
+
+      debugPrint('📡 Returns response status: ${response.statusCode}');
+
+      // Handle redirect (302)
+      if (response.statusCode == 302) {
+        debugPrint('📡 Got redirect for returns, following...');
+
+        final htmlBody = response.body;
+        final urlMatch = RegExp(r'HREF="([^"]+)"').firstMatch(htmlBody);
+
+        if (urlMatch != null) {
+          final redirectUrl = urlMatch.group(1)!.replaceAll('&amp;', '&');
+          debugPrint('📡 Returns redirect URL: $redirectUrl');
+
+          final redirectResponse = await http
+              .get(Uri.parse(redirectUrl))
+              .timeout(_timeout);
+
+          debugPrint(
+            '📡 Returns redirect response status: ${redirectResponse.statusCode}',
+          );
+
+          if (redirectResponse.statusCode == 200) {
+            final body =
+                jsonDecode(redirectResponse.body) as Map<String, dynamic>;
+            if (body['status'] == 'ok') {
+              final returns = List<Map<String, dynamic>>.from(
+                body['returns'] as List,
+              );
+              debugPrint(
+                '✅ Fetched ${returns.length} returns from Sheets (via redirect)',
+              );
+              return returns;
+            }
+          }
+        }
+      } else if (response.statusCode == 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        if (body['status'] == 'ok') {
+          final returns = List<Map<String, dynamic>>.from(
+            body['returns'] as List,
+          );
+          debugPrint('✅ Fetched ${returns.length} returns from Sheets');
+          return returns;
+        }
+      }
+
+      debugPrint('⚠️ No returns returned from Sheets');
+      return [];
+    } catch (e) {
+      debugPrint('❌ Error fetching returns: $e');
+      return [];
+    }
+  }
+
+  // ─── Update return approval status ────────────────────────────────────────
+
+  Future<bool> updateReturnApproval(
+    String webAppUrl,
+    String returnId,
+    String approvedBy,
+  ) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse(webAppUrl),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'action': 'updateReturnApproval',
+              'transactionId':
+                  returnId, // Use transaction ID to find the return
+              'approvedBy': approvedBy,
+              'approvedAt': DateTime.now().toIso8601String(),
+            }),
+          )
+          .timeout(_timeout);
+
+      if (response.statusCode == 200 || response.statusCode == 302) {
+        if (response.statusCode == 302) {
+          return true;
+        }
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        return body['status'] == 'ok';
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error updating return approval: $e');
+      return false;
     }
   }
 }

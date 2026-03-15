@@ -91,8 +91,8 @@ function doPost(e) {
     if (data.action === 'updateStatus') {
       const rows = sheet.getDataRange().getValues();
       const headers = rows[0];
-      const gmailIdx = headers.indexOf('Gmail');
-      const statusIdx = headers.indexOf('Status');
+      const gmailIdx = headers.indexOf('อีเมล');
+      const statusIdx = headers.indexOf('สถานะ');
 
       if (gmailIdx === -1 || statusIdx === -1) {
         return _jsonResponse({ status: 'error', message: 'Headers not found' });
@@ -116,7 +116,7 @@ function doPost(e) {
     if (data.action === 'checkUser') {
       const rows = sheet.getDataRange().getValues();
       const headers = rows[0];
-      const gmailIdx = headers.indexOf('Gmail');
+      const gmailIdx = headers.indexOf('อีเมล');
 
       for (let i = 1; i < rows.length; i++) {
         if (rows[i][gmailIdx] === data.gmail) {
@@ -139,7 +139,7 @@ function doPost(e) {
       const rows = adminSheet.getDataRange().getValues();
       if (rows.length > 1) {
         const headers = rows[0];
-        const gmailIdx = headers.indexOf('Gmail');
+        const gmailIdx = headers.indexOf('อีเมล');
         for (let i = 1; i < rows.length; i++) {
           if (rows[i][gmailIdx] === data.gmail) {
             return _jsonResponse({ status: 'ok', message: 'Admin already exists' });
@@ -188,7 +188,7 @@ function doPost(e) {
 
       const rows = adminSheet.getDataRange().getValues();
       const headers = rows[0];
-      const gmailIdx = headers.indexOf('Gmail');
+      const gmailIdx = headers.indexOf('อีเมล');
 
       if (gmailIdx === -1) {
         return _jsonResponse({ status: 'error', message: 'Gmail column not found' });
@@ -272,13 +272,13 @@ function doPost(e) {
       let updated = false;
       for (let i = 1; i < rows.length; i++) {
         if (rows[i][idIdx] == data.id) {
-          const nameIdx = headers.indexOf('Name');
-          const descIdx = headers.indexOf('Description');
-          const catIdx = headers.indexOf('Category');
-          const qtyIdx = headers.indexOf('Quantity');
-          const availIdx = headers.indexOf('Available');
-          const statusIdx = headers.indexOf('Status');
-          const updatedAtIdx = headers.indexOf('UpdatedAt');
+          const nameIdx = headers.indexOf('ชื่อ');
+          const descIdx = headers.indexOf('รายละเอียด');
+          const catIdx = headers.indexOf('หมวดหมู่');
+          const qtyIdx = headers.indexOf('จำนวนทั้งหมด');
+          const availIdx = headers.indexOf('จำนวนที่ว่าง');
+          const statusIdx = headers.indexOf('สถานะ');
+          const updatedAtIdx = headers.indexOf('วันที่อัปเดต');
 
           // Conflict resolution: Compare timestamps if provided
           if (data.updatedAt && updatedAtIdx !== -1) {
@@ -406,9 +406,9 @@ function doPost(e) {
       let updated = false;
       for (let i = 1; i < rows.length; i++) {
         if (rows[i][idIdx] == data.id) {
-          const statusIdx = headers.indexOf('Status');
-          const actualReturnDateIdx = headers.indexOf('ActualReturnDate');
-          const notesIdx = headers.indexOf('Notes');
+          const statusIdx = headers.indexOf('สถานะ');
+          const actualReturnDateIdx = headers.indexOf('วันที่คืนจริง');
+          const notesIdx = headers.indexOf('หมายเหตุ');
 
           if (data.status !== undefined && statusIdx !== -1) {
             transactionSheet.getRange(i + 1, statusIdx + 1).setValue(data.status);
@@ -444,8 +444,7 @@ function doPost(e) {
 
       // Add return record with admin approval info
       returnsSheet.appendRow([
-        data.id || '',
-        data.transactionId || '',
+        data.transactionId || '', // Use transaction ID as the return ID
         data.equipmentId || '',
         data.equipmentName || '',
         data.userGmail || '',
@@ -463,6 +462,58 @@ function doPost(e) {
       return _jsonResponse({ status: 'ok', message: 'Return recorded successfully' });
     }
 
+    // ── Get all returns from Returns sheet ──────────────────────────
+    if (data.action === 'getAllReturns') {
+      const returnsSheet = ss.getSheetByName(SHEET_NAMES.RETURNS);
+      if (!returnsSheet) {
+        return _jsonResponse({ status: 'error', message: 'Returns sheet not found' });
+      }
+
+      const dataRange = returnsSheet.getDataRange();
+      const values = dataRange.getValues();
+
+      if (values.length <= 1) {
+        return _jsonResponse({ status: 'ok', returns: [] });
+      }
+
+      const headers = values[0];
+      const returns = [];
+
+      for (let i = 1; i < values.length; i++) {
+        const row = values[i];
+        const returnObj = {};
+        headers.forEach((header, index) => {
+          returnObj[header] = row[index] || '';
+        });
+        returns.push(returnObj);
+      }
+
+      return _jsonResponse({ status: 'ok', returns: returns });
+    }
+
+    // ── Update return approval status ──────────────────────────────
+    if (data.action === 'updateReturnApproval') {
+      const returnsSheet = ss.getSheetByName(SHEET_NAMES.RETURNS);
+      if (!returnsSheet) {
+        return _jsonResponse({ status: 'error', message: 'Returns sheet not found' });
+      }
+
+      const dataRange = returnsSheet.getDataRange();
+      const values = dataRange.getValues();
+
+      // Find the return by ID (which is the transaction ID)
+      for (let i = 1; i < values.length; i++) {
+        if (values[i][0].toString() === data.transactionId.toString()) {
+          // Update ApprovedBy (column 11) and ApprovedAt (column 12)
+          returnsSheet.getRange(i + 1, 11).setValue(data.approvedBy || '');
+          returnsSheet.getRange(i + 1, 12).setValue(data.approvedAt || _toThailandTime());
+          return _jsonResponse({ status: 'ok', message: 'Return approval updated' });
+        }
+      }
+
+      return _jsonResponse({ status: 'error', message: 'Return not found' });
+    }
+
     return _jsonResponse({ status: 'error', message: 'Unknown action: ' + data.action });
   } catch (err) {
     return _jsonResponse({ status: 'error', message: err.toString() });
@@ -472,11 +523,11 @@ function doPost(e) {
 // Initialize all required sheets
 function _initializeSheets(ss) {
   const requiredSheets = [
-    { name: SHEET_NAMES.EQUIPMENT, headers: ['ID', 'Name', 'Description', 'Category', 'Quantity', 'Available', 'Status', 'CreatedAt', 'UpdatedAt'] },
-    { name: SHEET_NAMES.TRANSACTIONS, headers: ['ID', 'EquipmentID', 'UserGmail', 'BorrowDate', 'ReturnDate', 'ActualReturnDate', 'Status', 'Notes'] },
-    { name: SHEET_NAMES.RETURNS, headers: ['ID', 'TransactionID', 'EquipmentID', 'EquipmentName', 'UserGmail', 'UserName', 'BorrowDate', 'ReturnDate', 'ActualReturnDate', 'Overdue', 'Notes', 'ApprovedBy', 'ApprovedAt', 'ReturnedAt'] },
-    { name: SHEET_NAMES.USERS, headers: ['Name', 'Gmail', 'Address', 'VillageCode', 'PasswordHash', 'Latitude', 'Longitude', 'Status', 'RegisteredAt'] },
-    { name: SHEET_NAMES.ADMINS, headers: ['Name', 'Gmail', 'PasswordHash', 'Role', 'VillageCode', 'CreatedAt'] }
+    { name: SHEET_NAMES.EQUIPMENT, headers: ['ID', 'ชื่อ', 'รายละเอียด', 'หมวดหมู่', 'จำนวนทั้งหมด', 'จำนวนที่ว่าง', 'สถานะ', 'วันที่สร้าง', 'วันที่อัปเดต'] },
+    { name: SHEET_NAMES.TRANSACTIONS, headers: ['ID', 'EquipmentID', 'อีเมลผู้ใช้', 'วันที่ยืม', 'วันที่ต้องคืน', 'วันที่คืนจริง', 'สถานะ', 'หมายเหตุ'] },
+    { name: SHEET_NAMES.RETURNS, headers: ['ID', 'EquipmentID', 'ชื่ออุปกรณ์', 'อีเมลผู้ใช้', 'ชื่อผู้ใช้', 'วันที่ยืม', 'วันที่ต้องคืน', 'วันที่คืนจริง', 'เกินกำหนด', 'หมายเหตุ', 'อนุมัติโดย', 'วันที่อนุมัติ', 'วันที่บันทึก'] },
+    { name: SHEET_NAMES.USERS, headers: ['ชื่อ', 'อีเมล', 'ที่อยู่', 'รหัสหมู่บ้าน', 'รหัสผ่าน', 'ละติจูด', 'ลองจิจูด', 'สถานะ', 'วันที่สมัคร'] },
+    { name: SHEET_NAMES.ADMINS, headers: ['ชื่อ', 'อีเมล', 'รหัสผ่าน', 'บทบาท', 'รหัสหมู่บ้าน', 'วันที่สร้าง'] }
   ];
 
   requiredSheets.forEach((sheetConfig, index) => {

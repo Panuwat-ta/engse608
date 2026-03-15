@@ -244,8 +244,9 @@ class _EditEquipmentScreenState extends State<EditEquipmentScreen> {
                 if (v?.trim().isEmpty ?? true) return 'กรุณากรอกจำนวน';
                 final num = int.tryParse(v!);
                 if (num == null || num <= 0) return 'จำนวนต้องมากกว่า 0';
-                if (num < borrowed)
+                if (num < borrowed) {
                   return 'จำนวนต้องไม่น้อยกว่าที่ถูกยืมไป ($borrowed)';
+                }
                 return null;
               },
             ),

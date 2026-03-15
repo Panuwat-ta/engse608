@@ -3,6 +3,7 @@
 // Entry point: MultiProvider + Material Design 3
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'providers/app_provider.dart';
 import 'screens/splash_screen.dart';
@@ -25,6 +26,13 @@ class CommunityToolApp extends StatelessWidget {
     return MaterialApp(
       title: 'Community Tools',
       debugShowCheckedModeBanner: false,
+      locale: const Locale('th', 'TH'),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('th', 'TH'), Locale('en', 'US')],
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(

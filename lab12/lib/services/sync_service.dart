@@ -15,6 +15,184 @@ class SyncService {
   bool _isSyncing = false;
   String? _webAppUrl;
 
+  /// Map Thai headers from Google Sheets to English keys for local processing
+  static Map<String, dynamic> _mapSheetToLocal(Map<String, dynamic> sheetData) {
+    final mapped = <String, dynamic>{};
+
+    // User mappings
+    if (sheetData.containsKey('ชื่อ')) {
+      mapped['Name'] = sheetData['ชื่อ'];
+    }
+    if (sheetData.containsKey('อีเมล')) {
+      mapped['Gmail'] = sheetData['อีเมล'];
+    }
+    if (sheetData.containsKey('ที่อยู่')) {
+      mapped['Address'] = sheetData['ที่อยู่'];
+    }
+    if (sheetData.containsKey('รหัสหมู่บ้าน')) {
+      mapped['VillageCode'] = sheetData['รหัสหมู่บ้าน'];
+    }
+    if (sheetData.containsKey('รหัสผ่าน')) {
+      mapped['PasswordHash'] = sheetData['รหัสผ่าน'];
+    }
+    if (sheetData.containsKey('ละติจูด')) {
+      mapped['Latitude'] = sheetData['ละติจูด'];
+    }
+    if (sheetData.containsKey('ลองจิจูด')) {
+      mapped['Longitude'] = sheetData['ลองจิจูด'];
+    }
+    if (sheetData.containsKey('สถานะ')) {
+      mapped['Status'] = sheetData['สถานะ'];
+    }
+    if (sheetData.containsKey('วันที่สมัคร')) {
+      mapped['RegisteredAt'] = sheetData['วันที่สมัคร'];
+    }
+
+    // Equipment mappings
+    if (sheetData.containsKey('ID')) {
+      mapped['ID'] = sheetData['ID'];
+    }
+    if (sheetData.containsKey('ชื่อ')) {
+      mapped['Name'] = sheetData['ชื่อ'];
+    }
+    if (sheetData.containsKey('รายละเอียด')) {
+      mapped['Description'] = sheetData['รายละเอียด'];
+    }
+    if (sheetData.containsKey('หมวดหมู่')) {
+      mapped['Category'] = sheetData['หมวดหมู่'];
+    }
+    if (sheetData.containsKey('จำนวนทั้งหมด')) {
+      mapped['Quantity'] = sheetData['จำนวนทั้งหมด'];
+    }
+    if (sheetData.containsKey('จำนวนที่ว่าง')) {
+      mapped['Available'] = sheetData['จำนวนที่ว่าง'];
+    }
+    if (sheetData.containsKey('วันที่สร้าง')) {
+      mapped['CreatedAt'] = sheetData['วันที่สร้าง'];
+    }
+    if (sheetData.containsKey('วันที่อัปเดต')) {
+      mapped['UpdatedAt'] = sheetData['วันที่อัปเดต'];
+    }
+
+    // Admin mappings
+    if (sheetData.containsKey('บทบาท')) {
+      mapped['Role'] = sheetData['บทบาท'];
+    }
+    if (sheetData.containsKey('วันที่สร้าง')) {
+      mapped['CreatedAt'] = sheetData['วันที่สร้าง'];
+    }
+
+    // Transaction mappings
+    if (sheetData.containsKey('ID')) {
+      mapped['ID'] = sheetData['ID'];
+    }
+    if (sheetData.containsKey('EquipmentID')) {
+      mapped['EquipmentID'] = sheetData['EquipmentID'];
+    }
+    if (sheetData.containsKey('อีเมลผู้ใช้')) {
+      mapped['UserGmail'] = sheetData['อีเมลผู้ใช้'];
+    }
+    if (sheetData.containsKey('วันที่ยืม')) {
+      mapped['BorrowDate'] = sheetData['วันที่ยืม'];
+    }
+    if (sheetData.containsKey('วันที่ต้องคืน')) {
+      mapped['ReturnDate'] = sheetData['วันที่ต้องคืน'];
+    }
+    if (sheetData.containsKey('วันที่คืนจริง')) {
+      mapped['ActualReturnDate'] = sheetData['วันที่คืนจริง'];
+    }
+    if (sheetData.containsKey('สถานะ')) {
+      mapped['Status'] = sheetData['สถานะ'];
+    }
+    if (sheetData.containsKey('หมายเหตุ')) {
+      mapped['Notes'] = sheetData['หมายเหตุ'];
+    }
+
+    // Return mappings
+    if (sheetData.containsKey('ID')) {
+      mapped['ID'] = sheetData['ID']; // This is the transaction ID
+    }
+    if (sheetData.containsKey('EquipmentID')) {
+      mapped['EquipmentID'] = sheetData['EquipmentID'];
+    }
+    if (sheetData.containsKey('ชื่ออุปกรณ์')) {
+      mapped['EquipmentName'] = sheetData['ชื่ออุปกรณ์'];
+    }
+    if (sheetData.containsKey('อีเมลผู้ใช้')) {
+      mapped['UserGmail'] = sheetData['อีเมลผู้ใช้'];
+    }
+    if (sheetData.containsKey('ชื่อผู้ใช้')) {
+      mapped['UserName'] = sheetData['ชื่อผู้ใช้'];
+    }
+    if (sheetData.containsKey('วันที่ยืม')) {
+      mapped['BorrowDate'] = sheetData['วันที่ยืม'];
+    }
+    if (sheetData.containsKey('วันที่ต้องคืน')) {
+      mapped['ReturnDate'] = sheetData['วันที่ต้องคืน'];
+    }
+    if (sheetData.containsKey('วันที่คืนจริง')) {
+      mapped['ActualReturnDate'] = sheetData['วันที่คืนจริง'];
+    }
+    if (sheetData.containsKey('เกินกำหนด')) {
+      mapped['Overdue'] = sheetData['เกินกำหนด'];
+    }
+    if (sheetData.containsKey('หมายเหตุ')) {
+      mapped['Notes'] = sheetData['หมายเหตุ'];
+    }
+    if (sheetData.containsKey('อนุมัติโดย')) {
+      mapped['ApprovedBy'] = sheetData['อนุมัติโดย'];
+    }
+    if (sheetData.containsKey('วันที่อนุมัติ')) {
+      mapped['ApprovedAt'] = sheetData['วันที่อนุมัติ'];
+    }
+    if (sheetData.containsKey('วันที่บันทึก')) {
+      mapped['RecordedAt'] = sheetData['วันที่บันทึก'];
+    }
+
+    // Copy any unmapped fields as-is
+    for (final entry in sheetData.entries) {
+      if (!mapped.containsKey(entry.key) && !_isThaiHeader(entry.key)) {
+        mapped[entry.key] = entry.value;
+      }
+    }
+
+    return mapped;
+  }
+
+  /// Check if a header is in Thai (to avoid copying Thai headers to mapped data)
+  static bool _isThaiHeader(String header) {
+    const thaiHeaders = [
+      'ชื่อ',
+      'อีเมล',
+      'ที่อยู่',
+      'รหัสหมู่บ้าน',
+      'รหัสผ่าน',
+      'ละติจูด',
+      'ลองจิจูด',
+      'สถานะ',
+      'วันที่สมัคร',
+      'รายละเอียด',
+      'หมวดหมู่',
+      'จำนวนทั้งหมด',
+      'จำนวนที่ว่าง',
+      'วันที่สร้าง',
+      'วันที่อัปเดต',
+      'บทบาท',
+      'ชื่ออุปกรณ์',
+      'อีเมลผู้ใช้',
+      'ชื่อผู้ใช้',
+      'วันที่ยืม',
+      'วันที่ต้องคืน',
+      'วันที่คืนจริง',
+      'เกินกำหนด',
+      'หมายเหตุ',
+      'อนุมัติโดย',
+      'วันที่อนุมัติ',
+      'วันที่บันทึก',
+    ];
+    return thaiHeaders.contains(header);
+  }
+
   /// Initialize auto-sync with periodic interval
   void startAutoSync(
     String webAppUrl, {
@@ -95,8 +273,11 @@ class SyncService {
       // 4. Sync Equipment from Sheets to Local DB
       final equipmentResult = await _syncEquipmentFromSheets();
 
-      // 5. Sync Transactions from Local DB to Sheets
-      final transactionsResult = await _syncTransactionsToSheets();
+      // 5. Sync Transactions from Sheets to Local DB
+      final transactionsFromSheetsResult = await _syncTransactionsFromSheets();
+
+      // 6. Sync Transactions from Local DB to Sheets
+      final transactionsToSheetsResult = await _syncTransactionsToSheets();
 
       // 6. Sync pending local changes to Sheets
       final pendingResult = await _syncPendingToSheets();
@@ -105,7 +286,8 @@ class SyncService {
           usersResult.count +
           adminsResult.count +
           equipmentResult.count +
-          transactionsResult.count +
+          transactionsFromSheetsResult.count +
+          transactionsToSheetsResult.count +
           pendingResult.count +
           unsyncedResult.count;
       debugPrint('✅ Sync completed: $totalSynced items synced');
@@ -116,7 +298,9 @@ class SyncService {
         usersSynced: usersResult.count,
         adminsSynced: adminsResult.count,
         equipmentSynced: equipmentResult.count + unsyncedResult.count,
-        transactionsSynced: transactionsResult.count,
+        transactionsSynced:
+            transactionsFromSheetsResult.count +
+            transactionsToSheetsResult.count,
         pendingSynced: pendingResult.count,
       );
     } catch (e) {
@@ -146,7 +330,8 @@ class SyncService {
 
       for (final sheetUser in sheetUsers) {
         try {
-          final gmail = sheetUser['Gmail']?.toString();
+          final mappedUser = _mapSheetToLocal(sheetUser);
+          final gmail = mappedUser['Gmail']?.toString();
           if (gmail == null || gmail.isEmpty) {
             debugPrint('  ⚠️ Skipping user with empty Gmail');
             continue;
@@ -156,14 +341,14 @@ class SyncService {
           final localUser = await DatabaseHelper.instance.getUserByGmail(gmail);
 
           final userModel = UserModel(
-            name: sheetUser['Name']?.toString() ?? '',
+            name: mappedUser['Name']?.toString() ?? '',
             gmail: gmail,
-            address: sheetUser['Address']?.toString() ?? '',
-            villageCode: sheetUser['VillageCode']?.toString() ?? '',
-            passwordHash: sheetUser['PasswordHash']?.toString() ?? '',
-            lat: _parseDouble(sheetUser['Latitude']),
-            lng: _parseDouble(sheetUser['Longitude']),
-            status: sheetUser['Status']?.toString() ?? 'Pending',
+            address: mappedUser['Address']?.toString() ?? '',
+            villageCode: mappedUser['VillageCode']?.toString() ?? '',
+            passwordHash: mappedUser['PasswordHash']?.toString() ?? '',
+            lat: _parseDouble(mappedUser['Latitude']),
+            lng: _parseDouble(mappedUser['Longitude']),
+            status: mappedUser['Status']?.toString() ?? 'Pending',
           );
 
           if (localUser == null) {
@@ -240,7 +425,8 @@ class SyncService {
 
       for (final sheetAdmin in sheetAdmins) {
         try {
-          final gmail = sheetAdmin['Gmail']?.toString();
+          final mappedAdmin = _mapSheetToLocal(sheetAdmin);
+          final gmail = mappedAdmin['Gmail']?.toString();
           if (gmail == null || gmail.isEmpty) {
             debugPrint('  ⚠️ Skipping admin with empty Gmail');
             continue;
@@ -256,7 +442,7 @@ class SyncService {
           if (localAdmin == null) {
             // Insert new admin
             debugPrint('  📝 Inserting admin: $gmail');
-            await DatabaseHelper.instance.insertAdmin(sheetAdmin);
+            await DatabaseHelper.instance.insertAdmin(mappedAdmin);
             syncedCount++;
             debugPrint('  ➕ Added admin: $gmail');
           } else {
@@ -299,7 +485,8 @@ class SyncService {
 
       for (final sheetItem in sheetEquipment) {
         try {
-          final id = sheetItem['ID'];
+          final mappedItem = _mapSheetToLocal(sheetItem);
+          final id = mappedItem['ID'];
           if (id == null) {
             debugPrint('  ⚠️ Skipping equipment with empty ID');
             continue;
@@ -312,7 +499,7 @@ class SyncService {
             id is int ? id : int.tryParse(id.toString()) ?? 0,
           );
 
-          final sheetUpdatedAt = sheetItem['UpdatedAt']?.toString() ?? '';
+          final sheetUpdatedAt = mappedItem['UpdatedAt']?.toString() ?? '';
           final localUpdatedAt = localItem?['updated_at']?.toString() ?? '';
 
           if (localItem == null) {
@@ -320,15 +507,15 @@ class SyncService {
             debugPrint('  📝 Inserting equipment: $id');
             await DatabaseHelper.instance.insertEquipment({
               'id': id,
-              'name': sheetItem['Name']?.toString() ?? '',
-              'description': sheetItem['Description']?.toString() ?? '',
-              'category': sheetItem['Category']?.toString() ?? 'ทั่วไป',
-              'quantity': sheetItem['Quantity'] ?? 1,
-              'available': sheetItem['Available'] ?? 1,
-              'status': sheetItem['Status']?.toString() ?? 'Available',
+              'name': mappedItem['Name']?.toString() ?? '',
+              'description': mappedItem['Description']?.toString() ?? '',
+              'category': mappedItem['Category']?.toString() ?? 'ทั่วไป',
+              'quantity': mappedItem['Quantity'] ?? 1,
+              'available': mappedItem['Available'] ?? 1,
+              'status': mappedItem['Status']?.toString() ?? 'Available',
               'image_url': '',
               'created_at':
-                  sheetItem['CreatedAt']?.toString() ??
+                  mappedItem['CreatedAt']?.toString() ??
                   DateTime.now().toIso8601String(),
               'updated_at': sheetUpdatedAt.isNotEmpty
                   ? sheetUpdatedAt
@@ -355,12 +542,14 @@ class SyncService {
                   await DatabaseHelper.instance.updateEquipment(
                     id is int ? id : int.tryParse(id.toString()) ?? 0,
                     {
-                      'name': sheetItem['Name']?.toString() ?? '',
-                      'description': sheetItem['Description']?.toString() ?? '',
-                      'category': sheetItem['Category']?.toString() ?? 'ทั่วไป',
-                      'quantity': sheetItem['Quantity'] ?? 1,
-                      'available': sheetItem['Available'] ?? 1,
-                      'status': sheetItem['Status']?.toString() ?? 'Available',
+                      'name': mappedItem['Name']?.toString() ?? '',
+                      'description':
+                          mappedItem['Description']?.toString() ?? '',
+                      'category':
+                          mappedItem['Category']?.toString() ?? 'ทั่วไป',
+                      'quantity': mappedItem['Quantity'] ?? 1,
+                      'available': mappedItem['Available'] ?? 1,
+                      'status': mappedItem['Status']?.toString() ?? 'Available',
                       'updated_at': sheetUpdatedAt,
                     },
                   );
@@ -377,23 +566,23 @@ class SyncService {
             } else {
               // No pending local changes, check if Sheet data changed
               final needsUpdate =
-                  localItem['name'] != sheetItem['Name'] ||
-                  localItem['available'] != sheetItem['Available'] ||
-                  localItem['status'] != sheetItem['Status'] ||
-                  localItem['description'] != sheetItem['Description'] ||
-                  localItem['category'] != sheetItem['Category'] ||
-                  localItem['quantity'] != sheetItem['Quantity'];
+                  localItem['name'] != mappedItem['Name'] ||
+                  localItem['available'] != mappedItem['Available'] ||
+                  localItem['status'] != mappedItem['Status'] ||
+                  localItem['description'] != mappedItem['Description'] ||
+                  localItem['category'] != mappedItem['Category'] ||
+                  localItem['quantity'] != mappedItem['Quantity'];
 
               if (needsUpdate) {
                 await DatabaseHelper.instance.updateEquipment(
                   id is int ? id : int.tryParse(id.toString()) ?? 0,
                   {
-                    'name': sheetItem['Name']?.toString() ?? '',
-                    'description': sheetItem['Description']?.toString() ?? '',
-                    'category': sheetItem['Category']?.toString() ?? 'ทั่วไป',
-                    'quantity': sheetItem['Quantity'] ?? 1,
-                    'available': sheetItem['Available'] ?? 1,
-                    'status': sheetItem['Status']?.toString() ?? 'Available',
+                    'name': mappedItem['Name']?.toString() ?? '',
+                    'description': mappedItem['Description']?.toString() ?? '',
+                    'category': mappedItem['Category']?.toString() ?? 'ทั่วไป',
+                    'quantity': mappedItem['Quantity'] ?? 1,
+                    'available': mappedItem['Available'] ?? 1,
+                    'status': mappedItem['Status']?.toString() ?? 'Available',
                     'updated_at': sheetUpdatedAt.isNotEmpty
                         ? sheetUpdatedAt
                         : DateTime.now().toIso8601String(),
@@ -562,15 +751,17 @@ class SyncService {
 
             if (sheetItem.isNotEmpty) {
               // Update local DB with Sheet data (Sheet wins)
+              final mappedSheetItem = _mapSheetToLocal(sheetItem);
               await DatabaseHelper.instance.updateEquipment(id, {
-                'name': sheetItem['Name'],
-                'description': sheetItem['Description'],
-                'category': sheetItem['Category'],
-                'quantity': sheetItem['Quantity'],
-                'available': sheetItem['Available'],
-                'status': sheetItem['Status'],
+                'name': mappedSheetItem['Name'],
+                'description': mappedSheetItem['Description'],
+                'category': mappedSheetItem['Category'],
+                'quantity': mappedSheetItem['Quantity'],
+                'available': mappedSheetItem['Available'],
+                'status': mappedSheetItem['Status'],
                 'updated_at':
-                    sheetItem['UpdatedAt'] ?? DateTime.now().toIso8601String(),
+                    mappedSheetItem['UpdatedAt'] ??
+                    DateTime.now().toIso8601String(),
               });
               await DatabaseHelper.instance.markEquipmentAsSynced(id);
               debugPrint('  ✅ Resolved conflict: Sheet data applied to local');
@@ -606,21 +797,114 @@ class SyncService {
     }
   }
 
-  /// Sync transactions from Local DB to Google Sheets
-  Future<_SyncCount> _syncTransactionsToSheets() async {
+  /// Sync transactions from Google Sheets to Local Database
+  Future<_SyncCount> _syncTransactionsFromSheets() async {
     try {
-      debugPrint('🔄 Syncing transactions to Sheets...');
+      debugPrint('🔄 Syncing transactions from Sheets...');
 
-      final transactions = await DatabaseHelper.instance.getAllTransactions();
-      debugPrint('📊 Found ${transactions.length} transactions in Local DB');
+      // Fetch all transactions from Sheets
+      final sheetTransactions = await SheetsService.instance
+          .fetchAllTransactions(_webAppUrl!);
 
-      if (transactions.isEmpty) {
+      debugPrint(
+        '📊 Fetched ${sheetTransactions.length} transactions from Sheets',
+      );
+
+      if (sheetTransactions.isEmpty) {
+        debugPrint('ℹ️ No transactions in Sheets');
         return _SyncCount(0);
       }
 
       int syncedCount = 0;
 
-      for (final tx in transactions) {
+      for (final sheetTx in sheetTransactions) {
+        try {
+          final mappedTx = _mapSheetToLocal(sheetTx);
+          final id = mappedTx['ID'];
+          if (id == null) {
+            debugPrint('  ⚠️ Skipping transaction with empty ID');
+            continue;
+          }
+
+          debugPrint('  🔍 Checking transaction: $id');
+
+          // Check if transaction exists in local DB
+          final localTx = await DatabaseHelper.instance.getTransactionById(
+            id is int ? id : int.tryParse(id.toString()) ?? 0,
+          );
+
+          if (localTx == null) {
+            // Insert new transaction
+            debugPrint('  📝 Inserting transaction: $id');
+            await DatabaseHelper.instance.insertTransaction({
+              'id': id,
+              'equipment_id': mappedTx['EquipmentID'] ?? 0,
+              'user_gmail': mappedTx['UserGmail']?.toString() ?? '',
+              'borrow_date': mappedTx['BorrowDate']?.toString() ?? '',
+              'return_date': mappedTx['ReturnDate']?.toString() ?? '',
+              'actual_return_date': mappedTx['ActualReturnDate']?.toString(),
+              'status': mappedTx['Status']?.toString() ?? 'Borrowed',
+              'notes': mappedTx['Notes']?.toString() ?? '',
+              'created_at':
+                  mappedTx['BorrowDate']?.toString() ??
+                  DateTime.now().toIso8601String(),
+            });
+            syncedCount++;
+            debugPrint('  ➕ Added transaction: $id');
+          } else {
+            // Check if transaction needs updating
+            final needsUpdate =
+                localTx['status'] != mappedTx['Status'] ||
+                localTx['actual_return_date'] != mappedTx['ActualReturnDate'] ||
+                localTx['notes'] != mappedTx['Notes'];
+
+            if (needsUpdate) {
+              await DatabaseHelper.instance.updateTransaction(
+                id is int ? id : int.tryParse(id.toString()) ?? 0,
+                {
+                  'status': mappedTx['Status']?.toString() ?? 'Borrowed',
+                  'actual_return_date': mappedTx['ActualReturnDate']
+                      ?.toString(),
+                  'notes': mappedTx['Notes']?.toString() ?? '',
+                },
+              );
+              syncedCount++;
+              debugPrint('  🔄 Updated transaction: $id');
+            } else {
+              debugPrint('  ✓ Transaction already up to date: $id');
+            }
+          }
+        } catch (e) {
+          debugPrint('  ⚠️ Error syncing transaction: $e');
+        }
+      }
+
+      debugPrint('✓ Transactions synced from Sheets: $syncedCount');
+      return _SyncCount(syncedCount);
+    } catch (e) {
+      debugPrint('❌ Error syncing transactions from Sheets: $e');
+      return _SyncCount(0);
+    }
+  }
+
+  /// Sync transactions from Local DB to Google Sheets
+  Future<_SyncCount> _syncTransactionsToSheets() async {
+    try {
+      debugPrint('🔄 Syncing unsynced transactions to Sheets...');
+
+      final unsyncedTransactions = await DatabaseHelper.instance
+          .getUnsyncedTransactions();
+      debugPrint(
+        '📊 Found ${unsyncedTransactions.length} unsynced transactions in Local DB',
+      );
+
+      if (unsyncedTransactions.isEmpty) {
+        return _SyncCount(0);
+      }
+
+      int syncedCount = 0;
+
+      for (final tx in unsyncedTransactions) {
         try {
           final result = await SheetsService.instance.addTransaction(
             _webAppUrl!,
@@ -637,14 +921,23 @@ class SyncService {
           );
 
           if (result['status'] == 'ok') {
+            // Mark as synced in local DB
+            await DatabaseHelper.instance.markTransactionAsSynced(
+              tx['id'] as int,
+            );
             syncedCount++;
+            debugPrint('  ✅ Synced transaction: ${tx['id']}');
+          } else {
+            debugPrint(
+              '  ⚠️ Failed to sync transaction ${tx['id']}: ${result['message']}',
+            );
           }
         } catch (e) {
           debugPrint('  ⚠️ Failed to sync transaction ${tx['id']}: $e');
         }
       }
 
-      debugPrint('✅ Synced $syncedCount transactions to Sheets');
+      debugPrint('✅ Synced $syncedCount unsynced transactions to Sheets');
       return _SyncCount(syncedCount);
     } catch (e) {
       debugPrint('❌ Failed to sync transactions: $e');

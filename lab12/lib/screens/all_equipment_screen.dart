@@ -18,7 +18,15 @@ class _AllEquipmentScreenState extends State<AllEquipmentScreen> {
   List<Map<String, dynamic>> _equipment = [];
   List<String> _categories = [];
   String _selectedCategory = 'ทั้งหมด';
+  String _searchQuery = '';
   bool _loading = true;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -79,10 +87,27 @@ class _AllEquipmentScreenState extends State<AllEquipmentScreen> {
   }
 
   List<Map<String, dynamic>> get _filteredEquipment {
+    List<Map<String, dynamic>> filtered;
+
     if (_selectedCategory == 'ทั้งหมด') {
-      return _equipment;
+      filtered = _equipment;
+    } else {
+      filtered = _equipment
+          .where((e) => e['category'] == _selectedCategory)
+          .toList();
     }
-    return _equipment.where((e) => e['category'] == _selectedCategory).toList();
+
+    // Filter by search query
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((e) {
+        final name = (e['name'] as String? ?? '').toLowerCase();
+        final description = (e['description'] as String? ?? '').toLowerCase();
+        final query = _searchQuery.toLowerCase();
+        return name.contains(query) || description.contains(query);
+      }).toList();
+    }
+
+    return filtered;
   }
 
   @override
@@ -103,6 +128,39 @@ class _AllEquipmentScreenState extends State<AllEquipmentScreen> {
       ),
       body: Column(
         children: [
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'ค้นหาอุปกรณ์...',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded),
+                        onPressed: () {
+                          setState(() {
+                            _searchController.clear();
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+                fillColor: cs.surfaceContainerHighest,
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+            ),
+          ),
+
           if (!_loading && _categories.isNotEmpty)
             Container(
               height: 50,
